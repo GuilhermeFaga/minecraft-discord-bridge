@@ -7,6 +7,8 @@ import com.faga.mcdiscordbridge.util.MessageFormatter;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.CommandEvent;
+import net.neoforged.neoforge.event.ServerChatEvent;
+import net.neoforged.neoforge.event.entity.player.AdvancementEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
@@ -79,5 +81,32 @@ public final class MinecraftEventHandler {
         String sourceName = event.getParseResults().getContext().getSource().getTextName();
         String input = event.getParseResults().getReader().getString();
         discordBot.sendAdminMessage("[ADMIN] " + sourceName + " ran command: " + CommandRedactor.redact(input));
+    }
+
+    @SubscribeEvent
+    public void onAdvancement(AdvancementEvent.AdvancementEarnEvent event) {
+        if (!BridgeConfig.ENABLE_ADVANCEMENTS.get()) {
+            return;
+        }
+        var advancement = event.getAdvancement();
+        if (advancement.value().display().isEmpty() || !advancement.value().display().get().shouldAnnounceChat()) {
+            return;
+        }
+        String player = event.getEntity().getGameProfile().getName();
+        String advancementName = advancement.value().display().get().getTitle().getString();
+        discordBot.sendChatMessage(":trophy: " + player + " has made the advancement " + advancementName);
+    }
+
+    @SubscribeEvent
+    public void onMinecraftChat(ServerChatEvent event) {
+        if (!BridgeConfig.ENABLE_MINECRAFT_CHAT_TO_DISCORD.get()) {
+            return;
+        }
+        String player = event.getPlayer().getGameProfile().getName();
+        String message = event.getRawText();
+        if (message.startsWith("[Discord] <")) {
+            return;
+        }
+        discordBot.sendChatMessage("**" + player + ":** " + message.replace("@", "@\u200B"));
     }
 }

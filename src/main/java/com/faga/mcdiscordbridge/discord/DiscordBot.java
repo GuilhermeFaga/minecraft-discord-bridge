@@ -2,6 +2,7 @@ package com.faga.mcdiscordbridge.discord;
 
 import com.faga.mcdiscordbridge.DiscordBridgeMod;
 import com.faga.mcdiscordbridge.config.BridgeConfig;
+import com.faga.mcdiscordbridge.config.BridgeConfigService;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
@@ -15,6 +16,11 @@ public final class DiscordBot {
 
     public void start(MinecraftServer minecraftServer) {
         this.server = minecraftServer;
+        BridgeConfigService.setServer(minecraftServer);
+        DiscordBridgeMod.LOGGER.info("Bridge config whitelistGuildId={}, chatChannelId={}, adminLogChannelId={}",
+                BridgeConfig.WHITELIST_GUILD_ID.get(),
+                BridgeConfig.CHAT_CHANNEL_ID.get(),
+                BridgeConfig.ADMIN_LOG_CHANNEL_ID.get());
         String token = BridgeConfig.resolveToken();
         if (token.isBlank()) {
             DiscordBridgeMod.LOGGER.warn("Discord bridge disabled: missing discordApiKey");
