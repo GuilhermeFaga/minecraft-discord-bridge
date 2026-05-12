@@ -1,7 +1,7 @@
 package com.faga.mcdiscordbridge.discord;
 
 import com.faga.mcdiscordbridge.config.BridgeConfig;
-import net.dv8tion.jda.api.Permission;
+import com.faga.mcdiscordbridge.util.PermissionUtil;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -10,10 +10,11 @@ import org.jetbrains.annotations.NotNull;
 
 public final class DiscordMessageHandler extends ListenerAdapter {
     private final DiscordBot bot;
-    private final DiscordSetupWizard wizard = new DiscordSetupWizard();
+    private final DiscordSetupWizard wizard;
 
     public DiscordMessageHandler(DiscordBot bot) {
         this.bot = bot;
+        this.wizard = new DiscordSetupWizard(bot);
     }
 
     @Override
@@ -28,11 +29,12 @@ public final class DiscordMessageHandler extends ListenerAdapter {
 
         String content = event.getMessage().getContentRaw().trim();
         if (content.equalsIgnoreCase("!bridge setup")) {
-            boolean isAdmin = event.getMember() != null && event.getMember().hasPermission(Permission.ADMINISTRATOR);
+            boolean isAdmin = PermissionUtil.isDiscordAdmin(event.getMember());
             wizard.startOrContinue(event, isAdmin);
             return;
         }
-        if (DiscordSetupWizard.handleStep(event)) {
+        boolean isAdmin = PermissionUtil.isDiscordAdmin(event.getMember());
+        if (wizard.handleStep(event, isAdmin)) {
             return;
         }
 
