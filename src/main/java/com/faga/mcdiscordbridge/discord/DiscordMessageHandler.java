@@ -1,22 +1,33 @@
 package com.faga.mcdiscordbridge.discord;
 
 import com.faga.mcdiscordbridge.config.BridgeConfig;
+import com.faga.mcdiscordbridge.leaderboard.LeaderboardCategory;
+import com.faga.mcdiscordbridge.leaderboard.LeaderboardEntry;
+import com.faga.mcdiscordbridge.leaderboard.LeaderboardService;
 import com.faga.mcdiscordbridge.link.PendingLinkCode;
 import com.faga.mcdiscordbridge.util.PermissionUtil;
+import java.time.Instant;
+import java.util.List;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
 public final class DiscordMessageHandler extends ListenerAdapter {
+    private static final int PAGE_SIZE = 10;
+
     private final DiscordBot bot;
     private final DiscordSetupWizard wizard;
+    private final LeaderboardService leaderboardService;
 
     public DiscordMessageHandler(DiscordBot bot) {
         this.bot = bot;
         this.wizard = new DiscordSetupWizard(bot);
+        this.leaderboardService = new LeaderboardService();
     }
 
     @Override
@@ -63,16 +74,23 @@ public final class DiscordMessageHandler extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
-        if (!"bridge-link".equals(event.getName())) {
+        if (!isWhitelistedGuild(event)) {
+            event.reply("This command is not enabled in this server.").setEphemeral(true).queue();
             return;
         }
+
+        if ("link".equals(event.getName())) {
+            handleLinkCommand(event);
+            return;
+        }
+        if ("leaderboard".equals(event.getName())) {
+            handleLeaderboardCommand(event);
+        }
+    }
+
+    private void handleLinkCommand(SlashCommandInteractionEvent event) {
         if (!BridgeConfig.ENABLE_ACCOUNT_LINKING.get()) {
             event.reply("Account linking is disabled by server configuration.").setEphemeral(true).queue();
-            return;
-        }
-        String whitelistGuildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
-        if (!whitelistGuildId.isBlank() && (event.getGuild() == null || !event.getGuild().getId().equals(whitelistGuildId))) {
-            event.reply("This command is not enabled in this server.").setEphemeral(true).queue();
             return;
         }
 
@@ -82,6 +100,56 @@ public final class DiscordMessageHandler extends ListenerAdapter {
                         + "` in Minecraft chat.\nThis code expires in " + seconds + " seconds.")
                 .setEphemeral(true)
                 .queue();
+    }
+
+    private void handleLeaderboardCommand(SlashCommandInteractionEvent event) {
+        if (bot.getServer() == null) {
+            event.reply("Server is not ready yet.").queue();
+            return;
+        }
+        String categoryKey = event.getOption("category", OptionMapping::getAsString);
+        LeaderboardCategory category = LeaderboardCategory.fromKey(categoryKey);
+        if (category == null) {
+            event.reply("Unknown category: `" + categoryKey + "`.").queue();
+            return;
+        }
+
+        int page = Math.max(1, event.getOption("page", 1, OptionMapping::getAsInt));
+        List<LeaderboardEntry> entries = leaderboardService.collect(bot.getServer(), category);
+        if (entries.isEmpty()) {
+            event.reply("No stats found for `" + category.key() + "` yet.").queue();
+            return;
+        }
+
+        int pageCount = Math.max(1, (entries.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int safePage = Math.min(page, pageCount);
+        int start = (safePage - 1) * PAGE_SIZE;
+        int end = Math.min(entries.size(), start + PAGE_SIZE);
+
+        StringBuilder description = new StringBuilder();
+        for (int i = start; i < end; i++) {
+            LeaderboardEntry entry = entries.get(i);
+            description.append("#")
+                    .append(i + 1)
+                    .append(" ")
+                    .append(entry.playerName())
+                    .append(" - ")
+                    .append(category.format(entry.value()))
+                    .append("\n");
+        }
+
+        EmbedBuilder embed = new EmbedBuilder()
+                .setTitle("Leaderboard: " + category.displayName())
+                .setDescription(description.toString())
+                .setTimestamp(Instant.now())
+                .setFooter("Page " + safePage + "/" + pageCount + " • " + entries.size() + " players");
+
+        event.replyEmbeds(embed.build()).queue();
+    }
+
+    private boolean isWhitelistedGuild(SlashCommandInteractionEvent event) {
+        String whitelistGuildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
+        return whitelistGuildId.isBlank() || (event.getGuild() != null && event.getGuild().getId().equals(whitelistGuildId));
     }
 
     private String sanitize(String text) {

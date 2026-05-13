@@ -10,6 +10,9 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.JDA.Status;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
+import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.interactions.commands.Command.Choice;
+import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.minecraft.server.MinecraftServer;
@@ -101,17 +104,29 @@ public final class DiscordBot {
     }
 
     private void registerSlashCommands() {
-        if (!BridgeConfig.ENABLE_ACCOUNT_LINKING.get()) {
-            return;
-        }
+        var linkCommand = Commands.slash("link", "Generate one-time code to link Discord to Minecraft");
+        OptionData categoryOption = new OptionData(OptionType.STRING, "category", "Leaderboard category", true)
+                .addChoices(
+                        new Choice("playtime", "playtime"),
+                        new Choice("deaths", "deaths"),
+                        new Choice("player_kills", "player_kills"),
+                        new Choice("mob_kills", "mob_kills"),
+                        new Choice("mined_blocks", "mined_blocks"),
+                        new Choice("distance_walked", "distance_walked")
+                );
+        OptionData pageOption = new OptionData(OptionType.INTEGER, "page", "Page number (default 1)", false).setMinValue(1);
+        var leaderboardCommand = Commands.slash("leaderboard", "Show Minecraft leaderboard by category")
+                .addOptions(categoryOption, pageOption);
+
         String guildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
         if (!guildId.isBlank() && jda.getGuildById(guildId) != null) {
-            jda.getGuildById(guildId)
-                    .upsertCommand("bridge-link", "Generate one-time code to link Discord to Minecraft")
-                    .queue();
+            var guild = jda.getGuildById(guildId);
+            guild.upsertCommand(linkCommand).queue();
+            guild.upsertCommand(leaderboardCommand).queue();
             return;
         }
-        jda.upsertCommand(Commands.slash("bridge-link", "Generate one-time code to link Discord to Minecraft")).queue();
+        jda.upsertCommand(linkCommand).queue();
+        jda.upsertCommand(leaderboardCommand).queue();
     }
 
     private void sendToChannel(String channelId, String text, DiscordEmbedPayload payload) {
