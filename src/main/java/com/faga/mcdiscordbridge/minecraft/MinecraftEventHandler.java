@@ -23,7 +23,8 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 
 public final class MinecraftEventHandler {
-    private static final String COLOR_SERVER = "#3B82F6";
+    private static final String COLOR_SERVER_STARTED = "#22C55E";
+    private static final String COLOR_SERVER_STOPPING = "#EF4444";
     private static final String COLOR_JOIN = "#22C55E";
     private static final String COLOR_LEAVE = "#F97316";
     private static final String COLOR_DEATH = "#EF4444";
@@ -98,9 +99,8 @@ public final class MinecraftEventHandler {
         long currentDay = event.getServer().overworld().getDayTime() / 24000L;
         lastCheckedDay = currentDay;
         discordBot.sendChatMessage(":white_check_mark: Server started",
-                DiscordEmbedPayload.builder("Server Status")
-                        .description("Server started")
-                        .color(COLOR_SERVER)
+                DiscordEmbedPayload.builder("Server started")
+                        .color(COLOR_SERVER_STARTED)
                         .build());
         discordBot.sendAdminMessage("[ADMIN] Server started",
                 DiscordEmbedPayload.builder("Admin Event")
@@ -113,9 +113,8 @@ public final class MinecraftEventHandler {
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
         discordBot.sendChatMessage(":octagonal_sign: Server stopping",
-                DiscordEmbedPayload.builder("Server Status")
-                        .description("Server stopping")
-                        .color(COLOR_SERVER)
+                DiscordEmbedPayload.builder("Server stopping")
+                        .color(COLOR_SERVER_STOPPING)
                         .build());
         discordBot.sendAdminMessage("[ADMIN] Server stopping",
                 DiscordEmbedPayload.builder("Admin Event")
