@@ -31,6 +31,28 @@ public final class BridgeConfig {
     public static final ModConfigSpec.BooleanValue ENABLE_MESSAGE_CONTENT_INTENT = BUILDER
             .comment("Enable only if Message Content Intent is allowed for your bot in Discord Developer Portal")
             .define("enableMessageContentIntent", false);
+    public static final ModConfigSpec.BooleanValue ENABLE_EMBEDS = BUILDER
+            .comment("Send Discord embeds for richer event logs")
+            .define("enableEmbeds", true);
+    public static final ModConfigSpec.ConfigValue<String> EMBED_COLOR_HEX = BUILDER
+            .comment("Hex color for embeds, for example #57A5FF")
+            .define("embedColorHex", "#57A5FF");
+    public static final ModConfigSpec.BooleanValue INCLUDE_PLAYER_HEAD_IN_EMBEDS = BUILDER
+            .comment("Include player head thumbnail in embeds when UUID is available")
+            .define("includePlayerHeadInEmbeds", true);
+    public static final ModConfigSpec.ConfigValue<String> PLAYER_HEAD_URL_TEMPLATE = BUILDER
+            .comment("URL template with %uuid% placeholder")
+            .define("playerHeadUrlTemplate", "https://crafatar.com/avatars/%uuid%?size=128&overlay");
+    public static final ModConfigSpec.BooleanValue ENABLE_BOT_ACTIVITY_ROTATION = BUILDER
+            .comment("Rotate bot activity text from botActivities")
+            .define("enableBotActivityRotation", true);
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> BOT_ACTIVITIES = BUILDER
+            .defineListAllowEmpty("botActivities", List.of("Watching the server", "Bridging chat", "Tracking events"), () -> "", o -> o instanceof String);
+    public static final ModConfigSpec.IntValue BOT_ACTIVITY_ROTATE_SECONDS = BUILDER
+            .defineInRange("botActivityRotateSeconds", 20, 5, 3600);
+    public static final ModConfigSpec.ConfigValue<String> BOT_ACTIVITY_TYPE = BUILDER
+            .comment("PLAYING, WATCHING, LISTENING, COMPETING")
+            .define("botActivityType", "WATCHING");
 
     public static final ModConfigSpec.BooleanValue REDACT_COMMAND_ARGUMENTS = BUILDER.define("redactCommandArguments", true);
     public static final ModConfigSpec.ConfigValue<List<? extends String>> REDACTED_COMMANDS = BUILDER

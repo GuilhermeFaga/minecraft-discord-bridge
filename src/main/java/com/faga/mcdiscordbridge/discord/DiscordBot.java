@@ -3,6 +3,7 @@ package com.faga.mcdiscordbridge.discord;
 import com.faga.mcdiscordbridge.DiscordBridgeMod;
 import com.faga.mcdiscordbridge.config.BridgeConfig;
 import com.faga.mcdiscordbridge.config.BridgeConfigService;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.JDA.Status;
@@ -14,6 +15,7 @@ import net.minecraft.server.MinecraftServer;
 public final class DiscordBot {
     private JDA jda;
     private MinecraftServer server;
+    private final DiscordActivityRotator activityRotator = new DiscordActivityRotator();
 
     public void start(MinecraftServer minecraftServer) {
         this.server = minecraftServer;
@@ -38,6 +40,7 @@ public final class DiscordBot {
                 DiscordBridgeMod.LOGGER.warn("Discord->Minecraft chat is enabled but Message Content Intent is disabled in config.");
             }
             this.jda = builder.build();
+            this.jda.addEventListener(new DiscordReadyListener(this));
             DiscordBridgeMod.LOGGER.info("Discord bot starting");
         } catch (NoClassDefFoundError e) {
             DiscordBridgeMod.LOGGER.error("Discord bridge disabled: missing runtime dependency ({}).", e.getMessage());
@@ -47,6 +50,7 @@ public final class DiscordBot {
     }
 
     public void stop() {
+        activityRotator.stop();
         if (jda != null) {
             jda.shutdown();
             jda = null;
@@ -62,16 +66,32 @@ public final class DiscordBot {
     }
 
     public void sendChatMessage(String text) {
-        sendToChannel(BridgeConfig.CHAT_CHANNEL_ID.get(), text);
+        sendToChannel(BridgeConfig.CHAT_CHANNEL_ID.get(), text, null);
+    }
+
+    public void sendChatMessage(String text, DiscordEmbedPayload payload) {
+        sendToChannel(BridgeConfig.CHAT_CHANNEL_ID.get(), text, payload);
     }
 
     public void sendAdminMessage(String text) {
         if (BridgeConfig.ENABLE_ADMIN_LOGS.get()) {
-            sendToChannel(BridgeConfig.ADMIN_LOG_CHANNEL_ID.get(), text);
+            sendToChannel(BridgeConfig.ADMIN_LOG_CHANNEL_ID.get(), text, null);
         }
     }
 
-    private void sendToChannel(String channelId, String text) {
+    public void sendAdminMessage(String text, DiscordEmbedPayload payload) {
+        if (BridgeConfig.ENABLE_ADMIN_LOGS.get()) {
+            sendToChannel(BridgeConfig.ADMIN_LOG_CHANNEL_ID.get(), text, payload);
+        }
+    }
+
+    public void onReady() {
+        if (jda != null) {
+            activityRotator.start(jda);
+        }
+    }
+
+    private void sendToChannel(String channelId, String text, DiscordEmbedPayload payload) {
         if (jda == null || channelId == null || channelId.isBlank()) {
             return;
         }
@@ -82,6 +102,14 @@ public final class DiscordBot {
             } else {
                 DiscordBridgeMod.LOGGER.warn("Configured Discord channel not found: {}", channelId);
             }
+            return;
+        }
+        if (BridgeConfig.ENABLE_EMBEDS.get() && payload != null) {
+            MessageEmbed embed = DiscordEmbedFactory.build(payload);
+            channel.sendMessageEmbeds(embed).queue(
+                    ignored -> {},
+                    error -> channel.sendMessage(text).queue()
+            );
             return;
         }
         channel.sendMessage(text).queue();
