@@ -2,11 +2,17 @@
 
 Server-side NeoForge mod for Minecraft `1.21.1` that runs an embedded Discord bot and bridges events/chat.
 
-## Features (v1)
-- Minecraft -> Discord: server start/stop, player join/leave, deaths
-- Discord -> Minecraft chat relay from a configured channel
-- Admin channel logging with command redaction
-- Guild text setup wizard command: `!bridge setup`
+## Features
+- Minecraft -> Discord bridge for server lifecycle, player join/leave, deaths, advancements, and day milestone announcements
+- Discord -> Minecraft chat relay from configured channel (with mention sanitization)
+- Rich Discord embeds with per-event colors, timestamps, optional player head thumbnails, and plain-text fallback
+- Bot activity rotation with configurable activity list, interval, and type (`PLAYING`, `WATCHING`, `LISTENING`, `COMPETING`)
+- Admin logging channel with command redaction and structured admin embeds
+- Discord setup wizard via guild text commands: `!bridge setup`, `!bridge chat <channelId>`, `!bridge admin <channelId>`
+- Discord/Minecraft account linking via `/link` (ephemeral one-time code) and in-game `/bridge link <code>`
+- Public `/leaderboard` slash command with categories and pagination
+- Leaderboards include online and offline players with saved stats
+- Resilient startup/runtime behavior: Discord failures are logged, startup messages are queued until JDA is ready
 
 ## Requirements
 - Java 21
@@ -23,26 +29,56 @@ Bot permissions:
 - Read Message History
 
 ## Configuration
-This mod uses server config values:
-- `discordApiKey` (literal token or `env:DISCORD_BOT_TOKEN`)
-- `whitelistGuildId` (required whitelist guild)
-- `chatChannelId`
-- `adminLogChannelId`
-- `enableMessageContentIntent` (set `true` only if enabled in Discord Developer Portal)
-- `enableEmbeds` (send rich embeds; falls back to plain text on errors)
-- `embedColorHex` (hex color for embeds, ex: `#57A5FF`)
-- `includePlayerHeadInEmbeds` (include player thumbnail from configured template)
-- `playerHeadUrlTemplate` (must include `%uuid%`, default uses Crafatar)
-- `enableBotActivityRotation`
-- `botActivities` (list of activity strings to rotate)
-- `botActivityRotateSeconds` (rotation interval, minimum 5)
-- `botActivityType` (`PLAYING`, `WATCHING`, `LISTENING`, `COMPETING`)
-- `dayMilestoneGap` (send day milestone every N days; `0` disables, `10` -> days 10/20/30)
-- `enableAccountLinking` (enable Discord-to-Minecraft account linking)
-- `linkCodeExpirySeconds` (one-time code lifetime)
-- `linkCodeLength` (code size, 4 to 12)
+First run creates `serverconfig/mcdiscordbridge-server.toml`.
 
-First run creates config in the server config directory.
+```toml
+# Discord bot token or env:DISCORD_BOT_TOKEN
+discordApiKey = "env:DISCORD_BOT_TOKEN"
+
+# Only messages from this guild are accepted
+whitelistGuildId = "123456789012345678"
+
+# Discord channel for chat bridge
+chatChannelId = "123456789012345678"
+
+# Discord channel for admin logs
+adminLogChannelId = "123456789012345678"
+
+# Enable only if Message Content Intent is allowed for your bot in Discord Developer Portal
+enableMessageContentIntent = false
+
+# Send Discord embeds for richer event logs
+enableEmbeds = true
+
+# Hex color for embeds, for example #57A5FF
+embedColorHex = "#57A5FF"
+
+# Include player head thumbnail in embeds when UUID is available
+includePlayerHeadInEmbeds = true
+
+# URL template with %uuid% placeholder
+playerHeadUrlTemplate = "https://crafatar.com/avatars/%uuid%?size=128&overlay"
+
+# Rotate bot activity text from botActivities
+enableBotActivityRotation = true
+botActivities = ["Watching the server", "Bridging chat", "Tracking events"]
+botActivityRotateSeconds = 20
+
+# PLAYING, WATCHING, LISTENING, COMPETING
+botActivityType = "WATCHING"
+
+# Send day milestone message every N minecraft days (0 disables)
+dayMilestoneGap = 10
+
+# Enable Discord account linking to Minecraft players
+enableAccountLinking = true
+
+# How long link codes remain valid
+linkCodeExpirySeconds = 600
+
+# Length of one-time account link code
+linkCodeLength = 6
+```
 
 ### Token via environment variable
 Set:

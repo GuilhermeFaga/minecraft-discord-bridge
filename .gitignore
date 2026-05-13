@@ -7,3 +7,4 @@ logs/
 .idea/
 .vscode/
 out/
+.local-neoforge-server
