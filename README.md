@@ -68,10 +68,16 @@ Then complete:
 Only Discord admins can run setup.
 
 ## Account Linking
-- On Discord, run slash command: `/bridge-link`
+- On Discord, run slash command: `/link`
 - The bot replies ephemerally with a one-time code
 - In Minecraft, run: `/bridge link <code>`
 - `linkCodeExpirySeconds` controls how long the code remains valid
+
+## Leaderboard
+- On Discord, run: `/leaderboard <category>`
+- Optional page: `/leaderboard <category> <page>`
+- Categories: `playtime`, `deaths`, `player_kills`, `mob_kills`, `mined_blocks`, `distance_walked`
+- Leaderboard responses are public in the channel
 
 ## Development
 Use Makefile helpers:
