@@ -29,6 +29,14 @@ This mod uses server config values:
 - `chatChannelId`
 - `adminLogChannelId`
 - `enableMessageContentIntent` (set `true` only if enabled in Discord Developer Portal)
+- `enableEmbeds` (send rich embeds; falls back to plain text on errors)
+- `embedColorHex` (hex color for embeds, ex: `#57A5FF`)
+- `includePlayerHeadInEmbeds` (include player thumbnail from configured template)
+- `playerHeadUrlTemplate` (must include `%uuid%`, default uses Crafatar)
+- `enableBotActivityRotation`
+- `botActivities` (list of activity strings to rotate)
+- `botActivityRotateSeconds` (rotation interval, minimum 5)
+- `botActivityType` (`PLAYING`, `WATCHING`, `LISTENING`, `COMPETING`)
 
 First run creates config in the server config directory.
 
