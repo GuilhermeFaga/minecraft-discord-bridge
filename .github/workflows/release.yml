@@ -80,10 +80,10 @@ jobs:
             neo_version: "21.11.42"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -121,7 +121,7 @@ jobs:
           done
 
       - name: Upload matrix artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-${{ matrix.loader }}-mc${{ matrix.minecraft }}
           path: release-assets/*.jar
@@ -131,7 +131,7 @@ jobs:
     needs: build-matrix
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: all-assets
 
@@ -141,7 +141,7 @@ jobs:
           find all-assets -name "*.jar" -exec cp {} final-assets/ \;
 
       - name: Publish GitHub Release assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "${{ github.ref_name }} • MC Discord Bridge"
           files: final-assets/*.jar

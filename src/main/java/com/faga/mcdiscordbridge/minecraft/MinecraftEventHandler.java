@@ -69,7 +69,7 @@ public final class MinecraftEventHandler {
                                             var linked = discordBot.getLinkService().consumeAndLink(
                                                     code,
                                                     player.getStringUUID(),
-                                                    player.getGameProfile().getName()
+                                                    player.getName().getString()
                                             );
                                             if (linked.isEmpty()) {
                                                 ctx.getSource().sendFailure(Component.literal("Invalid or expired link code."));
@@ -154,7 +154,7 @@ public final class MinecraftEventHandler {
         if (!BridgeConfig.ENABLE_JOIN_LEAVE.get()) {
             return;
         }
-        String name = event.getEntity().getGameProfile().getName();
+        String name = event.getEntity().getName().getString();
         String uuid = event.getEntity().getStringUUID();
         String text = MessageFormatter.join(name);
         discordBot.sendChatMessage(MessageFormatter.join(name),
@@ -175,7 +175,7 @@ public final class MinecraftEventHandler {
         if (!BridgeConfig.ENABLE_JOIN_LEAVE.get()) {
             return;
         }
-        String name = event.getEntity().getGameProfile().getName();
+        String name = event.getEntity().getName().getString();
         String uuid = event.getEntity().getStringUUID();
         String text = MessageFormatter.leave(name);
         discordBot.sendChatMessage(MessageFormatter.leave(name),
@@ -230,7 +230,7 @@ public final class MinecraftEventHandler {
         if (advancement.value().display().isEmpty() || !advancement.value().display().get().shouldAnnounceChat()) {
             return;
         }
-        String player = event.getEntity().getGameProfile().getName();
+        String player = event.getEntity().getName().getString();
         String advancementName = advancement.value().display().get().getTitle().getString();
         String text = ":trophy: " + player + " has made the advancement " + advancementName;
         discordBot.sendChatMessage(text,
@@ -244,7 +244,7 @@ public final class MinecraftEventHandler {
         if (!BridgeConfig.ENABLE_MINECRAFT_CHAT_TO_DISCORD.get()) {
             return;
         }
-        String player = event.getPlayer().getGameProfile().getName();
+        String player = event.getPlayer().getName().getString();
         String message = event.getRawText();
         if (message.startsWith("[Discord] <")) {
             return;
