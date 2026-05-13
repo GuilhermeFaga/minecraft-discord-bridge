@@ -1,4 +1,6 @@
 package com.faga.mcdiscordbridge.leaderboard;
 
-public record LeaderboardEntry(String playerName, int value) {
+import java.util.UUID;
+
+public record LeaderboardEntry(UUID playerUuid, String playerName, int value) {
 }

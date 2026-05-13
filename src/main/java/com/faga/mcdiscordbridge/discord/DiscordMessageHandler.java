@@ -50,26 +50,6 @@ public final class DiscordMessageHandler extends ListenerAdapter {
         if (wizard.handleStep(event, isAdmin)) {
             return;
         }
-
-        if (!BridgeConfig.ENABLE_DISCORD_CHAT_TO_MINECRAFT.get()) {
-            return;
-        }
-        if (!BridgeConfig.ENABLE_MESSAGE_CONTENT_INTENT.get()) {
-            return;
-        }
-        if (!event.getChannel().getId().equals(BridgeConfig.CHAT_CHANNEL_ID.get().trim())) {
-            return;
-        }
-        if (content.startsWith("!") || content.startsWith("/") || content.isBlank()) {
-            return;
-        }
-        String safe = sanitize(content);
-        if (bot.getServer() != null) {
-            bot.getServer().execute(() -> bot.getServer().getPlayerList().broadcastSystemMessage(
-                    Component.literal("[Discord] <" + event.getAuthor().getName() + "> " + safe),
-                    false
-            ));
-        }
     }
 
     @Override
@@ -85,7 +65,38 @@ public final class DiscordMessageHandler extends ListenerAdapter {
         }
         if ("leaderboard".equals(event.getName())) {
             handleLeaderboardCommand(event);
+            return;
         }
+        if ("mc".equals(event.getName())) {
+            handleMinecraftRelayCommand(event);
+        }
+    }
+
+    private void handleMinecraftRelayCommand(SlashCommandInteractionEvent event) {
+        if (!BridgeConfig.ENABLE_DISCORD_CHAT_TO_MINECRAFT.get()) {
+            event.reply("Discord to Minecraft relay is disabled by server configuration.").setEphemeral(true).queue();
+            return;
+        }
+        if (!event.getChannel().getId().equals(BridgeConfig.CHAT_CHANNEL_ID.get().trim())) {
+            event.reply("Use this command in the configured bridge chat channel.").setEphemeral(true).queue();
+            return;
+        }
+        if (bot.getServer() == null) {
+            event.reply("Server is not ready yet.").setEphemeral(true).queue();
+            return;
+        }
+        String message = event.getOption("message", OptionMapping::getAsString);
+        if (message == null || message.isBlank()) {
+            event.reply("Message cannot be empty.").setEphemeral(true).queue();
+            return;
+        }
+
+        String safe = sanitize(message.trim());
+        bot.getServer().execute(() -> bot.getServer().getPlayerList().broadcastSystemMessage(
+                Component.literal("[Discord] <" + event.getUser().getName() + "> " + safe),
+                false
+        ));
+        event.reply("Sent to Minecraft.").setEphemeral(true).queue();
     }
 
     private void handleLinkCommand(SlashCommandInteractionEvent event) {
@@ -115,9 +126,11 @@ public final class DiscordMessageHandler extends ListenerAdapter {
         }
 
         int page = Math.max(1, event.getOption("page", 1, OptionMapping::getAsInt));
+        String visibility = event.getOption("visibility", "private", OptionMapping::getAsString);
+        boolean isPublic = "public".equalsIgnoreCase(visibility);
         List<LeaderboardEntry> entries = leaderboardService.collect(bot.getServer(), category);
         if (entries.isEmpty()) {
-            event.reply("No stats found for `" + category.key() + "` yet.").queue();
+            event.reply("No stats found for `" + category.key() + "` yet.").setEphemeral(!isPublic).queue();
             return;
         }
 
@@ -129,10 +142,15 @@ public final class DiscordMessageHandler extends ListenerAdapter {
         StringBuilder description = new StringBuilder();
         for (int i = start; i < end; i++) {
             LeaderboardEntry entry = entries.get(i);
+            String displayName = entry.playerName();
+            var linked = bot.getLinkService().getByMinecraftUuid(entry.playerUuid().toString());
+            if (linked.isPresent()) {
+                displayName = "<@" + linked.get().discordUserId() + ">";
+            }
             description.append("#")
                     .append(i + 1)
                     .append(" ")
-                    .append(entry.playerName())
+                    .append(displayName)
                     .append(" - ")
                     .append(category.format(entry.value()))
                     .append("\n");
@@ -144,7 +162,7 @@ public final class DiscordMessageHandler extends ListenerAdapter {
                 .setTimestamp(Instant.now())
                 .setFooter("Page " + safePage + "/" + pageCount + " • " + entries.size() + " players");
 
-        event.replyEmbeds(embed.build()).queue();
+        event.replyEmbeds(embed.build()).setEphemeral(!isPublic).queue();
     }
 
     private boolean isWhitelistedGuild(SlashCommandInteractionEvent event) {

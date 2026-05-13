@@ -3,6 +3,7 @@ package com.faga.mcdiscordbridge.discord;
 import com.faga.mcdiscordbridge.DiscordBridgeMod;
 import com.faga.mcdiscordbridge.config.BridgeConfig;
 import com.faga.mcdiscordbridge.config.BridgeConfigService;
+import com.faga.mcdiscordbridge.link.LinkedAccount;
 import com.faga.mcdiscordbridge.link.DiscordLinkService;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.JDA;
@@ -18,6 +19,7 @@ import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.minecraft.server.MinecraftServer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class DiscordBot {
     private JDA jda;
@@ -46,8 +48,6 @@ public final class DiscordBot {
                     .addEventListeners(new DiscordMessageHandler(this));
             if (BridgeConfig.ENABLE_MESSAGE_CONTENT_INTENT.get()) {
                 builder.enableIntents(GatewayIntent.MESSAGE_CONTENT);
-            } else if (BridgeConfig.ENABLE_DISCORD_CHAT_TO_MINECRAFT.get()) {
-                DiscordBridgeMod.LOGGER.warn("Discord->Minecraft chat is enabled but Message Content Intent is disabled in config.");
             }
             this.jda = builder.build();
             this.jda.addEventListener(new DiscordReadyListener(this));
@@ -87,7 +87,7 @@ public final class DiscordBot {
     }
 
     public void sendChatMessage(String text, DiscordEmbedPayload payload) {
-        sendToChannel(BridgeConfig.CHAT_CHANNEL_ID.get(), text, payload);
+        sendToChannel(BridgeConfig.CHAT_CHANNEL_ID.get(), text, withoutDescription(payload));
     }
 
     public void sendAdminMessage(String text) {
@@ -104,7 +104,7 @@ public final class DiscordBot {
 
     public void onReady() {
         if (jda != null) {
-            activityRotator.start(jda);
+            activityRotator.start(jda, server);
             registerSlashCommands();
             flushPendingMessages();
         }
@@ -136,18 +136,28 @@ public final class DiscordBot {
                         new Choice("distance_walked", "distance_walked")
                 );
         OptionData pageOption = new OptionData(OptionType.INTEGER, "page", "Page number (default 1)", false).setMinValue(1);
+        OptionData visibilityOption = new OptionData(OptionType.STRING, "visibility", "Leaderboard visibility (private by default)", false)
+                .addChoices(
+                        new Choice("private", "private"),
+                        new Choice("public", "public")
+                );
         var leaderboardCommand = Commands.slash("leaderboard", "Show Minecraft leaderboard by category")
-                .addOptions(categoryOption, pageOption);
+                .addOptions(categoryOption, pageOption, visibilityOption);
+        OptionData mcMessageOption = new OptionData(OptionType.STRING, "message", "Message to relay to Minecraft", true);
+        var mcCommand = Commands.slash("mc", "Send a message to Minecraft chat")
+                .addOptions(mcMessageOption);
 
         String guildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
         if (!guildId.isBlank() && jda.getGuildById(guildId) != null) {
             var guild = jda.getGuildById(guildId);
             guild.upsertCommand(linkCommand).queue();
             guild.upsertCommand(leaderboardCommand).queue();
+            guild.upsertCommand(mcCommand).queue();
             return;
         }
         jda.upsertCommand(linkCommand).queue();
         jda.upsertCommand(leaderboardCommand).queue();
+        jda.upsertCommand(mcCommand).queue();
     }
 
     private void sendToChannel(String channelId, String text, DiscordEmbedPayload payload) {
@@ -167,7 +177,7 @@ public final class DiscordBot {
             return;
         }
         if (BridgeConfig.ENABLE_EMBEDS.get() && payload != null) {
-            MessageEmbed embed = DiscordEmbedFactory.build(payload);
+            MessageEmbed embed = DiscordEmbedFactory.build(withLinkedPlayerMention(payload));
             channel.sendMessageEmbeds(embed).queue(
                     ignored -> {},
                     error -> channel.sendMessage(text).queue()
@@ -175,6 +185,53 @@ public final class DiscordBot {
             return;
         }
         channel.sendMessage(text).queue();
+    }
+
+    private DiscordEmbedPayload withLinkedPlayerMention(DiscordEmbedPayload payload) {
+        if (payload.playerUuid() == null || payload.playerUuid().isBlank()) {
+            return payload;
+        }
+        LinkedAccount linked = linkService.getByMinecraftUuid(payload.playerUuid()).orElse(null);
+        if (linked == null) {
+            return payload;
+        }
+        String mention = "<@" + linked.discordUserId() + ">";
+        String minecraftName = linked.minecraftName();
+        return DiscordEmbedPayload.builder(payload.title())
+                .description(replacePlayerName(payload.description(), minecraftName, mention))
+                .player(mention, payload.playerUuid())
+                .color(payload.colorHex())
+                .fields(replacePlayerNameInFields(payload.fields(), minecraftName, mention))
+                .build();
+    }
+
+    private Map<String, String> replacePlayerNameInFields(Map<String, String> fields, String playerName, String replacement) {
+        if (fields == null || fields.isEmpty()) {
+            return fields;
+        }
+        Map<String, String> replaced = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : fields.entrySet()) {
+            replaced.put(entry.getKey(), replacePlayerName(entry.getValue(), playerName, replacement));
+        }
+        return replaced;
+    }
+
+    private String replacePlayerName(String text, String playerName, String replacement) {
+        if (text == null || text.isBlank() || playerName == null || playerName.isBlank()) {
+            return text;
+        }
+        return text.replace(playerName, replacement);
+    }
+
+    private DiscordEmbedPayload withoutDescription(DiscordEmbedPayload payload) {
+        if (payload == null) {
+            return null;
+        }
+        return DiscordEmbedPayload.builder(payload.title())
+                .player(payload.playerName(), payload.playerUuid())
+                .color(payload.colorHex())
+                .fields(payload.fields())
+                .build();
     }
 
     private record PendingMessage(String channelId, String text, DiscordEmbedPayload payload) {

@@ -26,7 +26,7 @@ public final class LeaderboardService {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             int value = category.getValue(player);
             if (value > 0) {
-                byUuid.put(player.getUUID(), new LeaderboardEntry(player.getGameProfile().getName(), value));
+                byUuid.put(player.getUUID(), new LeaderboardEntry(player.getUUID(), player.getGameProfile().getName(), value));
             }
         }
 
@@ -64,7 +64,7 @@ public final class LeaderboardService {
         if (value <= 0) {
             return;
         }
-        byUuid.putIfAbsent(uuid, new LeaderboardEntry(resolveName(server, uuid), value));
+        byUuid.putIfAbsent(uuid, new LeaderboardEntry(uuid, resolveName(server, uuid), value));
     }
 
     private String resolveName(MinecraftServer server, UUID uuid) {

@@ -4,13 +4,13 @@ Server-side NeoForge mod for Minecraft `1.21.1` that runs an embedded Discord bo
 
 ## Features
 - Minecraft -> Discord bridge for server lifecycle, player join/leave, deaths, advancements, and day milestone announcements
-- Discord -> Minecraft chat relay from configured channel (with mention sanitization)
+- Discord -> Minecraft chat relay via `/mc` slash command in the configured channel (with mention sanitization)
 - Rich Discord embeds with per-event colors, timestamps, optional player head thumbnails, and plain-text fallback
 - Bot activity rotation with configurable activity list, interval, and type (`PLAYING`, `WATCHING`, `LISTENING`, `COMPETING`)
 - Admin logging channel with command redaction and structured admin embeds
 - Discord setup wizard via guild text commands: `!bridge setup`, `!bridge chat <channelId>`, `!bridge admin <channelId>`
 - Discord/Minecraft account linking via `/link` (ephemeral one-time code) and in-game `/bridge link <code>`
-- Public `/leaderboard` slash command with categories and pagination
+- `/leaderboard` slash command with categories, pagination, and visibility (`private` default, optional `public`)
 - Leaderboards include online and offline players with saved stats
 - Resilient startup/runtime behavior: Discord failures are logged, startup messages are queued until JDA is ready
 
@@ -19,10 +19,7 @@ Server-side NeoForge mod for Minecraft `1.21.1` that runs an embedded Discord bo
 - NeoForge server compatible with `21.1.229`
 - Discord bot token and bot invited to your server
 
-## Discord Bot Intents/Permissions
-Enable in Discord Developer Portal:
-- Message Content Intent
-
+## Discord Bot Permissions
 Bot permissions:
 - Read Messages / View Channels
 - Send Messages
@@ -44,7 +41,7 @@ chatChannelId = "123456789012345678"
 # Discord channel for admin logs
 adminLogChannelId = "123456789012345678"
 
-# Enable only if Message Content Intent is allowed for your bot in Discord Developer Portal
+# Legacy toggle for text-message relay mode (slash command `/mc` does not require this)
 enableMessageContentIntent = false
 
 # Send Discord embeds for richer event logs
@@ -109,11 +106,17 @@ Only Discord admins can run setup.
 - In Minecraft, run: `/bridge link <code>`
 - `linkCodeExpirySeconds` controls how long the code remains valid
 
+## Discord to Minecraft Relay
+- On Discord in the configured chat channel, run: `/mc <message>`
+- The message is relayed to Minecraft chat as `[Discord] <name> message`
+
 ## Leaderboard
 - On Discord, run: `/leaderboard <category>`
 - Optional page: `/leaderboard <category> <page>`
+- Optional visibility: `/leaderboard <category> <page> <visibility>` where `visibility` is `private` (default) or `public`
+- Linked players are shown with Discord mention tags (`<@discordUserId>`)
 - Categories: `playtime`, `deaths`, `player_kills`, `mob_kills`, `mined_blocks`, `distance_walked`
-- Leaderboard responses are public in the channel
+- Leaderboard responses are ephemeral by default
 
 ## Development
 Use Makefile helpers:

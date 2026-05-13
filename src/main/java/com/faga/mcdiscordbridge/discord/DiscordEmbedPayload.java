@@ -55,6 +55,16 @@ public record DiscordEmbedPayload(
             return this;
         }
 
+        public Builder fields(Map<String, String> values) {
+            if (values == null || values.isEmpty()) {
+                return this;
+            }
+            for (Map.Entry<String, String> entry : values.entrySet()) {
+                field(entry.getKey(), entry.getValue());
+            }
+            return this;
+        }
+
         public DiscordEmbedPayload build() {
             return new DiscordEmbedPayload(title, description, playerName, playerUuid, colorHex, fields);
         }
