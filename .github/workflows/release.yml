@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  build-matrix:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -27,15 +27,60 @@ jobs:
             minecraft: "1.21.1"
             java: "21"
             build_task: build
+            neo_version: "21.1.229"
+          - loader: neoforge
+            minecraft: "1.21.2"
+            java: "21"
+            build_task: build
+            neo_version: "21.2.1-beta"
+          - loader: neoforge
+            minecraft: "1.21.3"
+            java: "21"
+            build_task: build
+            neo_version: "21.3.96"
+          - loader: neoforge
+            minecraft: "1.21.4"
+            java: "21"
+            build_task: build
+            neo_version: "21.4.157"
+          - loader: neoforge
+            minecraft: "1.21.5"
+            java: "21"
+            build_task: build
+            neo_version: "21.5.97"
+          - loader: neoforge
+            minecraft: "1.21.6"
+            java: "21"
+            build_task: build
+            neo_version: "21.6.20-beta"
+          - loader: neoforge
+            minecraft: "1.21.7"
+            java: "21"
+            build_task: build
+            neo_version: "21.7.25-beta"
+          - loader: neoforge
+            minecraft: "1.21.8"
+            java: "21"
+            build_task: build
+            neo_version: "21.8.53"
+          - loader: neoforge
+            minecraft: "1.21.9"
+            java: "21"
+            build_task: build
+            neo_version: "21.9.16-beta"
+          - loader: neoforge
+            minecraft: "1.21.10"
+            java: "21"
+            build_task: build
+            neo_version: "21.10.64"
+          - loader: neoforge
+            minecraft: "1.21.11"
+            java: "21"
+            build_task: build
+            neo_version: "21.11.42"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Resolve Minecraft version
-        id: meta
-        run: |
-          MC_VERSION=$(grep '^minecraft_version=' gradle.properties | cut -d'=' -f2)
-          echo "mc_version=${MC_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -44,10 +89,15 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: gradle
 
-      - name: Build and test (with retry)
+      - name: Build and test (NeoForge, with retry)
+        if: matrix.loader == 'neoforge'
         run: |
           for attempt in 1 2 3; do
-            ./gradlew --no-daemon test ${{ matrix.build_task }} && exit 0
+            ./gradlew --no-daemon \
+              -Pminecraft_version=${{ matrix.minecraft }} \
+              -Pminecraft_version_range='[1.21,1.22)' \
+              -Pneo_version=${{ matrix.neo_version }} \
+              test ${{ matrix.build_task }} && exit 0
             echo "Attempt ${attempt} failed"
             if [ "$attempt" -eq 3 ]; then
               echo "Build failed after 3 attempts"
@@ -56,14 +106,43 @@ jobs:
             sleep 15
           done
 
-      - name: Collect artifacts
+      - name: Read mod version
+        id: mod
+        run: |
+          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
+          echo "mod_version=${MOD_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Collect normalized artifacts
         run: |
           mkdir -p release-assets
-          cp build/libs/*.jar release-assets/
+          for jar in build/libs/*.jar; do
+            base_name=$(basename "$jar")
+            cp "$jar" "release-assets/mcdiscordbridge-${{ matrix.loader }}-mc${{ matrix.minecraft }}-${{ steps.mod.outputs.mod_version }}-${base_name}"
+          done
+
+      - name: Upload matrix artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ matrix.loader }}-mc${{ matrix.minecraft }}
+          path: release-assets/*.jar
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs: build-matrix
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-assets
+
+      - name: Flatten assets
+        run: |
+          mkdir -p final-assets
+          find all-assets -name "*.jar" -exec cp {} final-assets/ \;
 
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:
-          name: "${{ github.ref_name }} for mc${{ steps.meta.outputs.mc_version }}"
-          files: release-assets/*.jar
+          name: "${{ github.ref_name }} • MC Discord Bridge"
+          files: final-assets/*.jar
           generate_release_notes: true

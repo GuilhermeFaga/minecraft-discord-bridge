@@ -26,6 +26,65 @@ jobs:
             minecraft: "1.21.1"
             java: "21"
             build_task: build
+            neo_version: "21.1.229"
+          - loader: neoforge
+            minecraft: "1.21.2"
+            java: "21"
+            build_task: build
+            neo_version: "21.2.1-beta"
+          - loader: neoforge
+            minecraft: "1.21.3"
+            java: "21"
+            build_task: build
+            neo_version: "21.3.96"
+          - loader: neoforge
+            minecraft: "1.21.4"
+            java: "21"
+            build_task: build
+            neo_version: "21.4.157"
+          - loader: neoforge
+            minecraft: "1.21.5"
+            java: "21"
+            build_task: build
+            neo_version: "21.5.97"
+          - loader: neoforge
+            minecraft: "1.21.6"
+            java: "21"
+            build_task: build
+            neo_version: "21.6.20-beta"
+          - loader: neoforge
+            minecraft: "1.21.7"
+            java: "21"
+            build_task: build
+            neo_version: "21.7.25-beta"
+          - loader: neoforge
+            minecraft: "1.21.8"
+            java: "21"
+            build_task: build
+            neo_version: "21.8.53"
+          - loader: neoforge
+            minecraft: "1.21.9"
+            java: "21"
+            build_task: build
+            neo_version: "21.9.16-beta"
+          - loader: neoforge
+            minecraft: "1.21.10"
+            java: "21"
+            build_task: build
+            neo_version: "21.10.64"
+          - loader: neoforge
+            minecraft: "1.21.11"
+            java: "21"
+            build_task: build
+            neo_version: "21.11.42"
+
+          # Fabric placeholders (future):
+          # - loader: fabric
+          #   minecraft: "1.21.1"
+          #   java: "21"
+          #   build_task: build
+          #   fabric_loader_version: "<PINNED_LOADER>"
+          #   fabric_api_version: "<PINNED_API>"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,16 +96,54 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: gradle
 
-      - name: Build and test (with retry)
+      - name: Build and test (NeoForge, with retry)
+        if: matrix.loader == 'neoforge'
         run: |
           for attempt in 1 2 3; do
-            ./gradlew --no-daemon test ${{ matrix.build_task }} && exit 0
+            ./gradlew --no-daemon \
+              -Pminecraft_version=${{ matrix.minecraft }} \
+              -Pminecraft_version_range='[1.21,1.22)' \
+              -Pneo_version=${{ matrix.neo_version }} \
+              test ${{ matrix.build_task }} && exit 0
             echo "Attempt ${attempt} failed"
             if [ "$attempt" -eq 3 ]; then
               echo "Build failed after 3 attempts"
               exit 1
             fi
             sleep 15
+          done
+
+      # Future Fabric step:
+      # - name: Build and test (Fabric, with retry)
+      #   if: matrix.loader == 'fabric'
+      #   run: |
+      #     for attempt in 1 2 3; do
+      #       ./gradlew --no-daemon \
+      #         -Pminecraft_version=${{ matrix.minecraft }} \
+      #         -Pfabric_loader_version=${{ matrix.fabric_loader_version }} \
+      #         -Pfabric_api_version=${{ matrix.fabric_api_version }} \
+      #         test ${{ matrix.build_task }} && exit 0
+      #       echo "Attempt ${attempt} failed"
+      #       if [ "$attempt" -eq 3 ]; then
+      #         echo "Build failed after 3 attempts"
+      #         exit 1
+      #       fi
+      #       sleep 15
+      #     done
+
+      - name: Read mod version
+        id: mod
+        run: |
+          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
+          echo "mod_version=${MOD_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Collect normalized artifacts
+        if: success()
+        run: |
+          mkdir -p ci-assets
+          for jar in build/libs/*.jar; do
+            base_name=$(basename "$jar")
+            cp "$jar" "ci-assets/mcdiscordbridge-${{ matrix.loader }}-mc${{ matrix.minecraft }}-${{ steps.mod.outputs.mod_version }}-${base_name}"
           done
 
       - name: Upload test reports
@@ -63,4 +160,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jars-${{ matrix.loader }}-mc${{ matrix.minecraft }}
-          path: build/libs/*.jar
+          path: ci-assets/*.jar
