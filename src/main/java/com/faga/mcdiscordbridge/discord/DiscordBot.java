@@ -3,11 +3,13 @@ package com.faga.mcdiscordbridge.discord;
 import com.faga.mcdiscordbridge.DiscordBridgeMod;
 import com.faga.mcdiscordbridge.config.BridgeConfig;
 import com.faga.mcdiscordbridge.config.BridgeConfigService;
+import com.faga.mcdiscordbridge.link.DiscordLinkService;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.JDA.Status;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.minecraft.server.MinecraftServer;
@@ -16,10 +18,12 @@ public final class DiscordBot {
     private JDA jda;
     private MinecraftServer server;
     private final DiscordActivityRotator activityRotator = new DiscordActivityRotator();
+    private final DiscordLinkService linkService = new DiscordLinkService();
 
     public void start(MinecraftServer minecraftServer) {
         this.server = minecraftServer;
         BridgeConfigService.setServer(minecraftServer);
+        linkService.initialize(minecraftServer);
         DiscordBridgeMod.LOGGER.info("Bridge config whitelistGuildId={}, chatChannelId={}, adminLogChannelId={}",
                 BridgeConfig.WHITELIST_GUILD_ID.get(),
                 BridgeConfig.CHAT_CHANNEL_ID.get(),
@@ -65,6 +69,10 @@ public final class DiscordBot {
         return jda;
     }
 
+    public DiscordLinkService getLinkService() {
+        return linkService;
+    }
+
     public void sendChatMessage(String text) {
         sendToChannel(BridgeConfig.CHAT_CHANNEL_ID.get(), text, null);
     }
@@ -88,7 +96,22 @@ public final class DiscordBot {
     public void onReady() {
         if (jda != null) {
             activityRotator.start(jda);
+            registerSlashCommands();
         }
+    }
+
+    private void registerSlashCommands() {
+        if (!BridgeConfig.ENABLE_ACCOUNT_LINKING.get()) {
+            return;
+        }
+        String guildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
+        if (!guildId.isBlank() && jda.getGuildById(guildId) != null) {
+            jda.getGuildById(guildId)
+                    .upsertCommand("bridge-link", "Generate one-time code to link Discord to Minecraft")
+                    .queue();
+            return;
+        }
+        jda.upsertCommand(Commands.slash("bridge-link", "Generate one-time code to link Discord to Minecraft")).queue();
     }
 
     private void sendToChannel(String channelId, String text, DiscordEmbedPayload payload) {

@@ -1,8 +1,10 @@
 package com.faga.mcdiscordbridge.discord;
 
 import com.faga.mcdiscordbridge.config.BridgeConfig;
+import com.faga.mcdiscordbridge.link.PendingLinkCode;
 import com.faga.mcdiscordbridge.util.PermissionUtil;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.minecraft.network.chat.Component;
@@ -57,6 +59,29 @@ public final class DiscordMessageHandler extends ListenerAdapter {
                     false
             ));
         }
+    }
+
+    @Override
+    public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
+        if (!"bridge-link".equals(event.getName())) {
+            return;
+        }
+        if (!BridgeConfig.ENABLE_ACCOUNT_LINKING.get()) {
+            event.reply("Account linking is disabled by server configuration.").setEphemeral(true).queue();
+            return;
+        }
+        String whitelistGuildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
+        if (!whitelistGuildId.isBlank() && (event.getGuild() == null || !event.getGuild().getId().equals(whitelistGuildId))) {
+            event.reply("This command is not enabled in this server.").setEphemeral(true).queue();
+            return;
+        }
+
+        PendingLinkCode code = bot.getLinkService().createOrReplaceCode(event.getUser().getId(), event.getUser().getAsTag());
+        long seconds = Math.max(1L, code.expiresAtEpochSeconds() - code.createdAtEpochSeconds());
+        event.reply("Your link code is: `" + code.code() + "`\nRun `/bridge link " + code.code()
+                        + "` in Minecraft chat.\nThis code expires in " + seconds + " seconds.")
+                .setEphemeral(true)
+                .queue();
     }
 
     private String sanitize(String text) {
