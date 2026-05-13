@@ -2,6 +2,7 @@ package com.faga.mcdiscordbridge.minecraft;
 
 import com.faga.mcdiscordbridge.config.BridgeConfig;
 import com.faga.mcdiscordbridge.discord.DiscordBot;
+import com.faga.mcdiscordbridge.discord.DiscordEmbedPayload;
 import com.faga.mcdiscordbridge.util.CommandRedactor;
 import com.faga.mcdiscordbridge.util.MessageFormatter;
 import net.neoforged.neoforge.common.NeoForge;
@@ -16,6 +17,13 @@ import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 
 public final class MinecraftEventHandler {
+    private static final String COLOR_SERVER = "#3B82F6";
+    private static final String COLOR_JOIN = "#22C55E";
+    private static final String COLOR_LEAVE = "#F97316";
+    private static final String COLOR_DEATH = "#EF4444";
+    private static final String COLOR_ADVANCEMENT = "#EAB308";
+    private static final String COLOR_ADMIN = "#8B5CF6";
+
     private final DiscordBot discordBot;
 
     public MinecraftEventHandler(DiscordBot discordBot) {
@@ -33,14 +41,32 @@ public final class MinecraftEventHandler {
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent event) {
-        discordBot.sendChatMessage(":white_check_mark: Server started");
-        discordBot.sendAdminMessage("[ADMIN] Server started");
+        discordBot.sendChatMessage(":white_check_mark: Server started",
+                DiscordEmbedPayload.builder("Server Status")
+                        .description("Server started")
+                        .color(COLOR_SERVER)
+                        .build());
+        discordBot.sendAdminMessage("[ADMIN] Server started",
+                DiscordEmbedPayload.builder("Admin Event")
+                        .description("Server started")
+                        .field("State", "Started")
+                        .color(COLOR_ADMIN)
+                        .build());
     }
 
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
-        discordBot.sendChatMessage(":octagonal_sign: Server stopping");
-        discordBot.sendAdminMessage("[ADMIN] Server stopping");
+        discordBot.sendChatMessage(":octagonal_sign: Server stopping",
+                DiscordEmbedPayload.builder("Server Status")
+                        .description("Server stopping")
+                        .color(COLOR_SERVER)
+                        .build());
+        discordBot.sendAdminMessage("[ADMIN] Server stopping",
+                DiscordEmbedPayload.builder("Admin Event")
+                        .description("Server stopping")
+                        .field("State", "Stopping")
+                        .color(COLOR_ADMIN)
+                        .build());
         discordBot.stop();
     }
 
@@ -50,8 +76,19 @@ public final class MinecraftEventHandler {
             return;
         }
         String name = event.getEntity().getGameProfile().getName();
-        discordBot.sendChatMessage(MessageFormatter.join(name));
-        discordBot.sendAdminMessage("[ADMIN] Join " + name + " " + event.getEntity().getStringUUID());
+        String uuid = event.getEntity().getStringUUID();
+        String text = MessageFormatter.join(name);
+        discordBot.sendChatMessage(MessageFormatter.join(name),
+                DiscordEmbedPayload.builder(text)
+                        .color(COLOR_JOIN)
+                        .build());
+        discordBot.sendAdminMessage("[ADMIN] Join " + name + " " + uuid,
+                DiscordEmbedPayload.builder("Admin Event")
+                        .description("Player joined")
+                        .player(name, uuid)
+                        .field("Event", "Join")
+                        .color(COLOR_ADMIN)
+                        .build());
     }
 
     @SubscribeEvent
@@ -60,8 +97,19 @@ public final class MinecraftEventHandler {
             return;
         }
         String name = event.getEntity().getGameProfile().getName();
-        discordBot.sendChatMessage(MessageFormatter.leave(name));
-        discordBot.sendAdminMessage("[ADMIN] Leave " + name + " " + event.getEntity().getStringUUID());
+        String uuid = event.getEntity().getStringUUID();
+        String text = MessageFormatter.leave(name);
+        discordBot.sendChatMessage(MessageFormatter.leave(name),
+                DiscordEmbedPayload.builder(text)
+                        .color(COLOR_LEAVE)
+                        .build());
+        discordBot.sendAdminMessage("[ADMIN] Leave " + name + " " + uuid,
+                DiscordEmbedPayload.builder("Admin Event")
+                        .description("Player left")
+                        .player(name, uuid)
+                        .field("Event", "Leave")
+                        .color(COLOR_ADMIN)
+                        .build());
     }
 
     @SubscribeEvent
@@ -70,7 +118,11 @@ public final class MinecraftEventHandler {
             return;
         }
         String death = player.getCombatTracker().getDeathMessage().getString();
-        discordBot.sendChatMessage(MessageFormatter.death(death));
+        String text = MessageFormatter.death(death);
+        discordBot.sendChatMessage(text,
+                DiscordEmbedPayload.builder(text)
+                        .color(COLOR_DEATH)
+                        .build());
     }
 
     @SubscribeEvent
@@ -80,7 +132,14 @@ public final class MinecraftEventHandler {
         }
         String sourceName = event.getParseResults().getContext().getSource().getTextName();
         String input = event.getParseResults().getReader().getString();
-        discordBot.sendAdminMessage("[ADMIN] " + sourceName + " ran command: " + CommandRedactor.redact(input));
+        String redacted = CommandRedactor.redact(input);
+        discordBot.sendAdminMessage("[ADMIN] " + sourceName + " ran command: " + redacted,
+                DiscordEmbedPayload.builder("Admin Command")
+                        .description("Command executed")
+                        .field("Source", sourceName)
+                        .field("Command", redacted)
+                        .color(COLOR_ADMIN)
+                        .build());
     }
 
     @SubscribeEvent
@@ -94,7 +153,11 @@ public final class MinecraftEventHandler {
         }
         String player = event.getEntity().getGameProfile().getName();
         String advancementName = advancement.value().display().get().getTitle().getString();
-        discordBot.sendChatMessage(":trophy: " + player + " has made the advancement " + advancementName);
+        String text = ":trophy: " + player + " has made the advancement " + advancementName;
+        discordBot.sendChatMessage(text,
+                DiscordEmbedPayload.builder(text)
+                        .color(COLOR_ADVANCEMENT)
+                        .build());
     }
 
     @SubscribeEvent
