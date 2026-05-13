@@ -3,12 +3,18 @@ package com.faga.mcdiscordbridge.leaderboard;
 import net.minecraft.stats.Stats;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.ServerStatsCounter;
 
 public enum LeaderboardCategory {
     PLAYTIME("playtime", "Play Time") {
         @Override
         public int getValue(ServerPlayer player) {
-            return player.getStats().getValue(Stats.CUSTOM, Stats.PLAY_TIME);
+            return player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAY_TIME));
+        }
+
+        @Override
+        public int getValue(ServerStatsCounter stats) {
+            return stats.getValue(Stats.CUSTOM.get(Stats.PLAY_TIME));
         }
 
         @Override
@@ -22,19 +28,34 @@ public enum LeaderboardCategory {
     DEATHS("deaths", "Deaths") {
         @Override
         public int getValue(ServerPlayer player) {
-            return player.getStats().getValue(Stats.CUSTOM, Stats.DEATHS);
+            return player.getStats().getValue(Stats.CUSTOM.get(Stats.DEATHS));
+        }
+
+        @Override
+        public int getValue(ServerStatsCounter stats) {
+            return stats.getValue(Stats.CUSTOM.get(Stats.DEATHS));
         }
     },
     PLAYER_KILLS("player_kills", "Player Kills") {
         @Override
         public int getValue(ServerPlayer player) {
-            return player.getStats().getValue(Stats.CUSTOM, Stats.PLAYER_KILLS);
+            return player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAYER_KILLS));
+        }
+
+        @Override
+        public int getValue(ServerStatsCounter stats) {
+            return stats.getValue(Stats.CUSTOM.get(Stats.PLAYER_KILLS));
         }
     },
     MOB_KILLS("mob_kills", "Mob Kills") {
         @Override
         public int getValue(ServerPlayer player) {
-            return player.getStats().getValue(Stats.CUSTOM, Stats.MOB_KILLS);
+            return player.getStats().getValue(Stats.CUSTOM.get(Stats.MOB_KILLS));
+        }
+
+        @Override
+        public int getValue(ServerStatsCounter stats) {
+            return stats.getValue(Stats.CUSTOM.get(Stats.MOB_KILLS));
         }
     },
     MINED_BLOCKS("mined_blocks", "Mined Blocks") {
@@ -42,7 +63,16 @@ public enum LeaderboardCategory {
         public int getValue(ServerPlayer player) {
             int total = 0;
             for (var block : BuiltInRegistries.BLOCK) {
-                total += player.getStats().getValue(Stats.BLOCK_MINED, block);
+                total += player.getStats().getValue(Stats.BLOCK_MINED.get(block));
+            }
+            return total;
+        }
+
+        @Override
+        public int getValue(ServerStatsCounter stats) {
+            int total = 0;
+            for (var block : BuiltInRegistries.BLOCK) {
+                total += stats.getValue(Stats.BLOCK_MINED.get(block));
             }
             return total;
         }
@@ -50,7 +80,12 @@ public enum LeaderboardCategory {
     DISTANCE_WALKED("distance_walked", "Distance Walked") {
         @Override
         public int getValue(ServerPlayer player) {
-            return player.getStats().getValue(Stats.CUSTOM, Stats.WALK_ONE_CM);
+            return player.getStats().getValue(Stats.CUSTOM.get(Stats.WALK_ONE_CM));
+        }
+
+        @Override
+        public int getValue(ServerStatsCounter stats) {
+            return stats.getValue(Stats.CUSTOM.get(Stats.WALK_ONE_CM));
         }
 
         @Override
@@ -80,6 +115,8 @@ public enum LeaderboardCategory {
     }
 
     public abstract int getValue(ServerPlayer player);
+
+    public abstract int getValue(ServerStatsCounter stats);
 
     public String format(int value) {
         return Integer.toString(value);
