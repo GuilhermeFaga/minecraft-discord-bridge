@@ -37,6 +37,10 @@ This mod uses server config values:
 - `botActivities` (list of activity strings to rotate)
 - `botActivityRotateSeconds` (rotation interval, minimum 5)
 - `botActivityType` (`PLAYING`, `WATCHING`, `LISTENING`, `COMPETING`)
+- `dayMilestoneGap` (send day milestone every N days; `0` disables, `10` -> days 10/20/30)
+- `enableAccountLinking` (enable Discord-to-Minecraft account linking)
+- `linkCodeExpirySeconds` (one-time code lifetime)
+- `linkCodeLength` (code size, 4 to 12)
 
 First run creates config in the server config directory.
 
@@ -62,6 +66,12 @@ Then complete:
 - `!bridge admin <channelId>`
 
 Only Discord admins can run setup.
+
+## Account Linking
+- On Discord, run slash command: `/bridge-link`
+- The bot replies ephemerally with a one-time code
+- In Minecraft, run: `/bridge link <code>`
+- `linkCodeExpirySeconds` controls how long the code remains valid
 
 ## Development
 Use Makefile helpers:
