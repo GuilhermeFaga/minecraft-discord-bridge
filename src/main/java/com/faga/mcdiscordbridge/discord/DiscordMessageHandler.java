@@ -41,6 +41,9 @@ public final class DiscordMessageHandler extends ListenerAdapter {
         if (!BridgeConfig.ENABLE_DISCORD_CHAT_TO_MINECRAFT.get()) {
             return;
         }
+        if (!BridgeConfig.ENABLE_MESSAGE_CONTENT_INTENT.get()) {
+            return;
+        }
         if (!event.getChannel().getId().equals(BridgeConfig.CHAT_CHANNEL_ID.get().trim())) {
             return;
         }

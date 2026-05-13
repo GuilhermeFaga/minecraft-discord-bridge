@@ -5,6 +5,7 @@ import com.faga.mcdiscordbridge.config.BridgeConfig;
 import com.faga.mcdiscordbridge.config.BridgeConfigService;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.JDA.Status;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
@@ -27,12 +28,19 @@ public final class DiscordBot {
             return;
         }
         try {
-            this.jda = JDABuilder.createDefault(token)
-                    .enableIntents(GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT)
+            JDABuilder builder = JDABuilder.createDefault(token)
+                    .enableIntents(GatewayIntent.GUILD_MESSAGES)
                     .disableCache(CacheFlag.VOICE_STATE, CacheFlag.ACTIVITY)
-                    .addEventListeners(new DiscordMessageHandler(this))
-                    .build();
+                    .addEventListeners(new DiscordMessageHandler(this));
+            if (BridgeConfig.ENABLE_MESSAGE_CONTENT_INTENT.get()) {
+                builder.enableIntents(GatewayIntent.MESSAGE_CONTENT);
+            } else if (BridgeConfig.ENABLE_DISCORD_CHAT_TO_MINECRAFT.get()) {
+                DiscordBridgeMod.LOGGER.warn("Discord->Minecraft chat is enabled but Message Content Intent is disabled in config.");
+            }
+            this.jda = builder.build();
             DiscordBridgeMod.LOGGER.info("Discord bot starting");
+        } catch (NoClassDefFoundError e) {
+            DiscordBridgeMod.LOGGER.error("Discord bridge disabled: missing runtime dependency ({}).", e.getMessage());
         } catch (Exception e) {
             DiscordBridgeMod.LOGGER.error("Discord bot failed to start", e);
         }
@@ -69,7 +77,11 @@ public final class DiscordBot {
         }
         TextChannel channel = jda.getTextChannelById(channelId.trim());
         if (channel == null) {
-            DiscordBridgeMod.LOGGER.warn("Configured Discord channel not found: {}", channelId);
+            if (jda.getStatus() != Status.CONNECTED) {
+                DiscordBridgeMod.LOGGER.info("Discord not ready yet; skipping send to channel {}", channelId);
+            } else {
+                DiscordBridgeMod.LOGGER.warn("Configured Discord channel not found: {}", channelId);
+            }
             return;
         }
         channel.sendMessage(text).queue();
