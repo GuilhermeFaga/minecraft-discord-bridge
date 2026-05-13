@@ -137,12 +137,21 @@ Only Discord admins can run setup.
 Use Makefile helpers:
 ```bash
 make setup
-make build
+make build-one MC_VERSION=1.21.8
+make build-all
 make run-server
-make run-prod-local
+make run-local-one MC_VERSION=1.21.8
 make test
 make jar-info
 ```
+
+`NEO_VERSION` is selected automatically from `MC_VERSION` using the same matrix as CI releases. You can still override it manually when needed:
+
+```bash
+make build-one MC_VERSION=1.21.8 NEO_VERSION=21.8.53
+```
+
+If `MC_VERSION` is not in the supported matrix, the Makefile fails fast with a clear error.
 
 Or directly:
 ```bash
@@ -158,7 +167,7 @@ Output jar is in `build/libs`.
   - `mcdiscordbridge-neoforge-mc1.21.1-0.1.2.jar`
   - `mcdiscordbridge-neoforge-mc1.21.1-0.1.2-sources.jar`
 
-`make run-prod-local` installs a local NeoForge server in `.local-neoforge-server`, copies the built mod jar into `mods/`, accepts EULA for local testing, and starts the server using NeoForge's production launch args.
+`make run-local-one` (or alias `make run-prod-local`) installs a local NeoForge server in `.local-neoforge-server/mc<MC_VERSION>`, copies the built mod jar into `mods/`, accepts EULA for local testing, and starts the server using NeoForge's production launch args.
 
 ## Notes
 - This is server-only. Do not install on clients.
