@@ -142,6 +142,9 @@ jobs:
   publish-release:
     runs-on: ubuntu-latest
     needs: build-matrix
+    env:
+      MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -159,3 +162,102 @@ jobs:
           name: "${{ github.ref_name }} • MC Discord Bridge"
           files: final-assets/*.jar
           generate_release_notes: true
+
+      - name: Publish versions to Modrinth
+        if: env.MODRINTH_PROJECT_ID != '' && env.MODRINTH_TOKEN != ''
+        run: |
+          set -euo pipefail
+
+          if [[ ! -d final-assets ]]; then
+            echo "final-assets directory is missing"
+            exit 1
+          fi
+
+          if [[ "${GITHUB_REF_NAME}" =~ -alpha ]]; then
+            VERSION_TYPE="alpha"
+          elif [[ "${GITHUB_REF_NAME}" =~ -beta ]]; then
+            VERSION_TYPE="beta"
+          else
+            VERSION_TYPE="release"
+          fi
+
+          CHANGELOG="Automated release for ${GITHUB_REF_NAME}"
+
+          for jar in final-assets/*.jar; do
+            if [[ ! -f "$jar" ]]; then
+              continue
+            fi
+
+            file_name="$(basename "$jar")"
+
+            if [[ "$file_name" == *"-sources.jar" ]]; then
+              echo "Skipping sources artifact: $file_name"
+              continue
+            fi
+
+            if [[ "$file_name" =~ ^mcdiscordbridge-neoforge-mc([0-9]+\.[0-9]+\.[0-9]+)-(.+)\.jar$ ]]; then
+              MC_VERSION="${BASH_REMATCH[1]}"
+              BASE_VERSION="${BASH_REMATCH[2]}"
+            else
+              echo "Skipping unknown artifact name format: $file_name"
+              continue
+            fi
+
+            VERSION_NUMBER="${BASE_VERSION}+mc${MC_VERSION}"
+            VERSION_NAME="MC Discord Bridge ${BASE_VERSION} for MC ${MC_VERSION}"
+
+            echo "Checking whether version already exists: ${VERSION_NUMBER}"
+            existing_count="$(curl -sS \
+              -H "Authorization: ${MODRINTH_TOKEN}" \
+              -H "User-Agent: faga/mcdiscordbridge-release-ci" \
+              "https://api.modrinth.com/v2/project/${MODRINTH_PROJECT_ID}/version" \
+              | jq --arg version_number "${VERSION_NUMBER}" '[.[] | select(.version_number == $version_number)] | length')"
+
+            if [[ "$existing_count" != "0" ]]; then
+              echo "Version already exists on Modrinth, skipping: ${VERSION_NUMBER}"
+              continue
+            fi
+
+            data_json="$(jq -n \
+              --arg name "${VERSION_NAME}" \
+              --arg version_number "${VERSION_NUMBER}" \
+              --arg changelog "${CHANGELOG}" \
+              --arg project_id "${MODRINTH_PROJECT_ID}" \
+              --arg game_version "${MC_VERSION}" \
+              --arg loader "neoforge" \
+              --arg version_type "${VERSION_TYPE}" \
+              '{
+                name: $name,
+                version_number: $version_number,
+                changelog: $changelog,
+                dependencies: [],
+                game_versions: [$game_version],
+                version_type: $version_type,
+                loaders: [$loader],
+                featured: false,
+                status: "listed",
+                project_id: $project_id,
+                file_parts: ["file"],
+                primary_file: "file"
+              }')"
+
+            response_code="$(curl -sS -o /tmp/modrinth-response.json -w "%{http_code}" \
+              -X POST "https://api.modrinth.com/v2/version" \
+              -H "Authorization: ${MODRINTH_TOKEN}" \
+              -H "User-Agent: faga/mcdiscordbridge-release-ci" \
+              -F "data=${data_json}" \
+              -F "file=@${jar}")"
+
+            if [[ "$response_code" -lt 200 || "$response_code" -ge 300 ]]; then
+              echo "Failed to upload ${file_name} (HTTP ${response_code})"
+              cat /tmp/modrinth-response.json
+              exit 1
+            fi
+
+            echo "Uploaded ${file_name} as ${VERSION_NUMBER}"
+          done
+
+      - name: Warn when Modrinth secrets are missing
+        if: env.MODRINTH_PROJECT_ID == '' || env.MODRINTH_TOKEN == ''
+        run: |
+          echo "Skipping Modrinth publish because MODRINTH_PROJECT_ID or MODRINTH_TOKEN is not configured."
