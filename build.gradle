@@ -49,10 +49,36 @@ dependencies {
         exclude module: 'opus-java'
         exclude group: 'org.slf4j', module: 'slf4j-api'
     }
+    runtimeOnly("net.dv8tion:JDA:5.6.1") {
+        exclude module: 'opus-java'
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+    runtimeOnly("com.squareup.okhttp3:okhttp:4.12.0")
+    runtimeOnly("com.squareup.okio:okio-jvm:3.6.0")
+    runtimeOnly("com.neovisionaries:nv-websocket-client:2.14")
+    runtimeOnly("net.sf.trove4j:core:3.1.0")
+    runtimeOnly("com.fasterxml.jackson.core:jackson-core:2.18.3")
+    runtimeOnly("com.fasterxml.jackson.core:jackson-annotations:2.18.3")
+    runtimeOnly("com.fasterxml.jackson.core:jackson-databind:2.18.3")
+    runtimeOnly("org.apache.commons:commons-collections4:4.4")
+    runtimeOnly("org.jetbrains.kotlin:kotlin-stdlib:1.9.10")
+    runtimeOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10")
+    runtimeOnly("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10")
     jarJar("net.dv8tion:JDA:5.6.1") {
         exclude module: 'opus-java'
         exclude group: 'org.slf4j', module: 'slf4j-api'
     }
+    jarJar("com.squareup.okhttp3:okhttp:4.12.0")
+    jarJar("com.squareup.okio:okio-jvm:3.6.0")
+    jarJar("com.neovisionaries:nv-websocket-client:2.14")
+    jarJar("net.sf.trove4j:core:3.1.0")
+    jarJar("com.fasterxml.jackson.core:jackson-core:2.18.3")
+    jarJar("com.fasterxml.jackson.core:jackson-annotations:2.18.3")
+    jarJar("com.fasterxml.jackson.core:jackson-databind:2.18.3")
+    jarJar("org.apache.commons:commons-collections4:4.4")
+    jarJar("org.jetbrains.kotlin:kotlin-stdlib:1.9.10")
+    jarJar("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10")
+    jarJar("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10")
 }
 
 processResources {
