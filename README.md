@@ -1,10 +1,12 @@
 # MC Discord Bridge
 
-Server-side NeoForge mod for Minecraft `1.21.1` that runs an embedded Discord bot and bridges events/chat.
+Server-side NeoForge mod for Minecraft `1.21.x` that runs an embedded Discord bot and bridges events/chat.
 
 ## Features
 - Minecraft -> Discord bridge for server lifecycle, player join/leave, deaths, advancements, and day milestone announcements
 - Discord -> Minecraft chat relay via `/mc` slash command in the configured channel (with mention sanitization)
+- `/mc` relays to Minecraft and echoes plain text back to Discord (`**name:** message`)
+- `/mc` uses linked Minecraft nickname when the Discord user is linked
 - Rich Discord embeds with per-event colors, timestamps, optional player head thumbnails, and plain-text fallback
 - Bot activity rotation with configurable activity list, interval, and type (`PLAYING`, `WATCHING`, `LISTENING`, `COMPETING`)
 - Admin logging channel with command redaction and structured admin embeds
@@ -12,12 +14,23 @@ Server-side NeoForge mod for Minecraft `1.21.1` that runs an embedded Discord bo
 - Discord/Minecraft account linking via `/link` (ephemeral one-time code) and in-game `/bridge link <code>`
 - `/leaderboard` slash command with categories, pagination, and visibility (`private` default, optional `public`)
 - Leaderboards include online and offline players with saved stats
+- Linked players are shown as Discord mentions (`<@discordUserId>`) in leaderboard and embeds
+- Bot activity rotation includes a built-in online/max players status entry
 - Resilient startup/runtime behavior: Discord failures are logged, startup messages are queued until JDA is ready
 
 ## Requirements
 - Java 21
-- NeoForge server compatible with `21.1.229`
+- NeoForge server compatible with one of the configured release matrix targets (currently `1.21.1` to `1.21.11`)
 - Discord bot token and bot invited to your server
+
+## Screenshots
+### Chat and Event Messages
+![Discord event messages](assets/messages.png)
+![Discord event messages (variant)](assets/messages2.png)
+![Discord event messages (variant 2)](assets/messages3.png)
+
+### Leaderboard
+![Leaderboard command output](assets/leaderboard.png)
 
 ## Discord Bot Permissions
 Bot permissions:
@@ -109,6 +122,8 @@ Only Discord admins can run setup.
 ## Discord to Minecraft Relay
 - On Discord in the configured chat channel, run: `/mc <message>`
 - The message is relayed to Minecraft chat as `[Discord] <name> message`
+- The same message is echoed in Discord as plain text: `**name:** message`
+- If the Discord account is linked, `name` uses the linked Minecraft nickname
 
 ## Leaderboard
 - On Discord, run: `/leaderboard <category>`
@@ -135,6 +150,13 @@ Or directly:
 ```
 
 Output jar is in `build/libs`.
+
+## Releases
+- Releases are triggered by pushing a tag matching `v*` (for example `v0.1.2`).
+- Release build version is derived from the tag (`v0.1.2` -> `0.1.2`) and passed to Gradle at build time.
+- Release assets are normalized to include loader and Minecraft version, for example:
+  - `mcdiscordbridge-neoforge-mc1.21.1-0.1.2.jar`
+  - `mcdiscordbridge-neoforge-mc1.21.1-0.1.2-sources.jar`
 
 `make run-prod-local` installs a local NeoForge server in `.local-neoforge-server`, copies the built mod jar into `mods/`, accepts EULA for local testing, and starts the server using NeoForge's production launch args.
 
