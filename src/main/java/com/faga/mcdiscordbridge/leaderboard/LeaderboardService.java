@@ -5,6 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.lang.reflect.Constructor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -63,7 +64,10 @@ public final class LeaderboardService {
             return;
         }
 
-        ServerStatsCounter statsCounter = new ServerStatsCounter(server, path.toFile());
+        ServerStatsCounter statsCounter = createStatsCounter(server, path);
+        if (statsCounter == null) {
+            return;
+        }
         int value = category.getValue(statsCounter);
         if (value <= 0) {
             return;
@@ -107,5 +111,20 @@ public final class LeaderboardService {
             DiscordBridgeMod.LOGGER.warn("Failed to read usercache.json for leaderboard names", e);
         }
         return names;
+    }
+
+    private ServerStatsCounter createStatsCounter(MinecraftServer server, Path path) {
+        try {
+            Constructor<ServerStatsCounter> pathCtor = ServerStatsCounter.class.getConstructor(MinecraftServer.class, Path.class);
+            return pathCtor.newInstance(server, path);
+        } catch (ReflectiveOperationException ignored) {
+        }
+        try {
+            Constructor<ServerStatsCounter> fileCtor = ServerStatsCounter.class.getConstructor(MinecraftServer.class, java.io.File.class);
+            return fileCtor.newInstance(server, path.toFile());
+        } catch (ReflectiveOperationException e) {
+            DiscordBridgeMod.LOGGER.warn("Failed to create ServerStatsCounter for {}", path, e);
+            return null;
+        }
     }
 }
