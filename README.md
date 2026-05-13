@@ -28,6 +28,7 @@ This mod uses server config values:
 - `whitelistGuildId` (required whitelist guild)
 - `chatChannelId`
 - `adminLogChannelId`
+- `enableMessageContentIntent` (set `true` only if enabled in Discord Developer Portal)
 
 First run creates config in the server config directory.
 
@@ -60,6 +61,7 @@ Use Makefile helpers:
 make setup
 make build
 make run-server
+make run-prod-local
 make test
 make jar-info
 ```
@@ -70,6 +72,8 @@ Or directly:
 ```
 
 Output jar is in `build/libs`.
+
+`make run-prod-local` installs a local NeoForge server in `.local-neoforge-server`, copies the built mod jar into `mods/`, accepts EULA for local testing, and starts the server using NeoForge's production launch args.
 
 ## Notes
 - This is server-only. Do not install on clients.
