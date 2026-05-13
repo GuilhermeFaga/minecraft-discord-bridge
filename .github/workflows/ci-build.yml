@@ -141,10 +141,17 @@ jobs:
         if: success()
         run: |
           mkdir -p ci-assets
-          for jar in build/libs/*.jar; do
-            base_name=$(basename "$jar")
-            cp "$jar" "ci-assets/mcdiscordbridge-${{ matrix.loader }}-mc${{ matrix.minecraft }}-${{ steps.mod.outputs.mod_version }}-${base_name}"
-          done
+          base="mcdiscordbridge-${{ matrix.loader }}-mc${{ matrix.minecraft }}-${{ steps.mod.outputs.mod_version }}"
+          main_jar="build/libs/mcdiscordbridge-${{ steps.mod.outputs.mod_version }}.jar"
+          sources_jar="build/libs/mcdiscordbridge-${{ steps.mod.outputs.mod_version }}-sources.jar"
+
+          if [ -f "$main_jar" ]; then
+            cp "$main_jar" "ci-assets/${base}.jar"
+          fi
+
+          if [ -f "$sources_jar" ]; then
+            cp "$sources_jar" "ci-assets/${base}-sources.jar"
+          fi
 
       - name: Upload test reports
         if: always()
