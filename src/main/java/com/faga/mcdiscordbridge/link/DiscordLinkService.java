@@ -77,6 +77,18 @@ public final class DiscordLinkService {
         return Optional.ofNullable(linkedByMinecraftUuid.get(uuid));
     }
 
+    public Optional<LinkedAccount> getByDiscordUserId(String discordUserId) {
+        if (discordUserId == null || discordUserId.isBlank()) {
+            return Optional.empty();
+        }
+        for (LinkedAccount account : linkedByMinecraftUuid.values()) {
+            if (discordUserId.equals(account.discordUserId())) {
+                return Optional.of(account);
+            }
+        }
+        return Optional.empty();
+    }
+
     private String generateUniqueCode() {
         int length = BridgeConfig.LINK_CODE_LENGTH.get();
         for (int attempt = 0; attempt < 20; attempt++) {

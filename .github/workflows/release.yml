@@ -89,11 +89,23 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: gradle
 
+      - name: Resolve mod version from tag
+        id: mod
+        run: |
+          REF_NAME="${GITHUB_REF_NAME}"
+          if [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-].+)?$ ]]; then
+            MOD_VERSION="${REF_NAME#v}"
+          else
+            MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
+          fi
+          echo "mod_version=${MOD_VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Build and test (NeoForge, with retry)
         if: matrix.loader == 'neoforge'
         run: |
           for attempt in 1 2 3; do
             ./gradlew --no-daemon \
+              -Pmod_version=${{ steps.mod.outputs.mod_version }} \
               -Pminecraft_version=${{ matrix.minecraft }} \
               -Pminecraft_version_range='[1.21,1.22)' \
               -Pneo_version=${{ matrix.neo_version }} \
@@ -106,19 +118,20 @@ jobs:
             sleep 15
           done
 
-      - name: Read mod version
-        id: mod
-        run: |
-          MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
-          echo "mod_version=${MOD_VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Collect normalized artifacts
         run: |
           mkdir -p release-assets
-          for jar in build/libs/*.jar; do
-            base_name=$(basename "$jar")
-            cp "$jar" "release-assets/mcdiscordbridge-${{ matrix.loader }}-mc${{ matrix.minecraft }}-${{ steps.mod.outputs.mod_version }}-${base_name}"
-          done
+          base="mcdiscordbridge-${{ matrix.loader }}-mc${{ matrix.minecraft }}-${{ steps.mod.outputs.mod_version }}"
+          main_jar="build/libs/mcdiscordbridge-${{ steps.mod.outputs.mod_version }}.jar"
+          sources_jar="build/libs/mcdiscordbridge-${{ steps.mod.outputs.mod_version }}-sources.jar"
+
+          if [ -f "$main_jar" ]; then
+            cp "$main_jar" "release-assets/${base}.jar"
+          fi
+
+          if [ -f "$sources_jar" ]; then
+            cp "$sources_jar" "release-assets/${base}-sources.jar"
+          fi
 
       - name: Upload matrix artifacts
         uses: actions/upload-artifact@v7

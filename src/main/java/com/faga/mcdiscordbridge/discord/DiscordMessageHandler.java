@@ -91,12 +91,17 @@ public final class DiscordMessageHandler extends ListenerAdapter {
             return;
         }
 
+        String senderName = bot.getLinkService()
+                .getByDiscordUserId(event.getUser().getId())
+                .map(linked -> linked.minecraftName())
+                .orElse(event.getUser().getName());
         String safe = sanitize(message.trim());
         bot.getServer().execute(() -> bot.getServer().getPlayerList().broadcastSystemMessage(
-                Component.literal("[Discord] <" + event.getUser().getName() + "> " + safe),
+                Component.literal("[Discord] <" + senderName + "> " + safe),
                 false
         ));
-        event.reply("Sent to Minecraft.").setEphemeral(true).queue();
+        event.getChannel().sendMessage("**" + senderName + ":** " + safe).queue();
+        event.deferReply(true).queue(hook -> hook.deleteOriginal().queue());
     }
 
     private void handleLinkCommand(SlashCommandInteractionEvent event) {
