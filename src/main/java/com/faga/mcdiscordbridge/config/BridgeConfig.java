@@ -53,6 +53,18 @@ public final class BridgeConfig {
     public static final ModConfigSpec.ConfigValue<String> BOT_ACTIVITY_TYPE = BUILDER
             .comment("PLAYING, WATCHING, LISTENING, COMPETING")
             .define("botActivityType", "WATCHING");
+    public static final ModConfigSpec.IntValue DAY_MILESTONE_GAP = BUILDER
+            .comment("Send day milestone message every N minecraft days (0 disables)")
+            .defineInRange("dayMilestoneGap", 0, 0, Integer.MAX_VALUE);
+    public static final ModConfigSpec.BooleanValue ENABLE_ACCOUNT_LINKING = BUILDER
+            .comment("Enable Discord account linking to Minecraft players")
+            .define("enableAccountLinking", true);
+    public static final ModConfigSpec.IntValue LINK_CODE_EXPIRY_SECONDS = BUILDER
+            .comment("How long link codes remain valid")
+            .defineInRange("linkCodeExpirySeconds", 600, 30, 86400);
+    public static final ModConfigSpec.IntValue LINK_CODE_LENGTH = BUILDER
+            .comment("Length of one-time account link code")
+            .defineInRange("linkCodeLength", 6, 4, 12);
 
     public static final ModConfigSpec.BooleanValue REDACT_COMMAND_ARGUMENTS = BUILDER.define("redactCommandArguments", true);
     public static final ModConfigSpec.ConfigValue<List<? extends String>> REDACTED_COMMANDS = BUILDER
