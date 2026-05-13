@@ -16,12 +16,15 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.minecraft.server.MinecraftServer;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class DiscordBot {
     private JDA jda;
     private MinecraftServer server;
     private final DiscordActivityRotator activityRotator = new DiscordActivityRotator();
     private final DiscordLinkService linkService = new DiscordLinkService();
+    private final List<PendingMessage> pendingMessages = new ArrayList<>();
 
     public void start(MinecraftServer minecraftServer) {
         this.server = minecraftServer;
@@ -58,6 +61,9 @@ public final class DiscordBot {
 
     public void stop() {
         activityRotator.stop();
+        synchronized (pendingMessages) {
+            pendingMessages.clear();
+        }
         if (jda != null) {
             jda.shutdown();
             jda = null;
@@ -100,6 +106,21 @@ public final class DiscordBot {
         if (jda != null) {
             activityRotator.start(jda);
             registerSlashCommands();
+            flushPendingMessages();
+        }
+    }
+
+    private void flushPendingMessages() {
+        List<PendingMessage> copy;
+        synchronized (pendingMessages) {
+            if (pendingMessages.isEmpty()) {
+                return;
+            }
+            copy = new ArrayList<>(pendingMessages);
+            pendingMessages.clear();
+        }
+        for (PendingMessage msg : copy) {
+            sendToChannel(msg.channelId(), msg.text(), msg.payload());
         }
     }
 
@@ -136,7 +157,10 @@ public final class DiscordBot {
         TextChannel channel = jda.getTextChannelById(channelId.trim());
         if (channel == null) {
             if (jda.getStatus() != Status.CONNECTED) {
-                DiscordBridgeMod.LOGGER.info("Discord not ready yet; skipping send to channel {}", channelId);
+                synchronized (pendingMessages) {
+                    pendingMessages.add(new PendingMessage(channelId, text, payload));
+                }
+                DiscordBridgeMod.LOGGER.info("Discord not ready yet; queued message for channel {}", channelId);
             } else {
                 DiscordBridgeMod.LOGGER.warn("Configured Discord channel not found: {}", channelId);
             }
@@ -151,5 +175,8 @@ public final class DiscordBot {
             return;
         }
         channel.sendMessage(text).queue();
+    }
+
+    private record PendingMessage(String channelId, String text, DiscordEmbedPayload payload) {
     }
 }
