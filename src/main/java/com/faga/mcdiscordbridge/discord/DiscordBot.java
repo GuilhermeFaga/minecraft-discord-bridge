@@ -15,6 +15,8 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.commands.Command.Choice;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import net.minecraft.server.MinecraftServer;
 import java.util.ArrayList;
@@ -46,9 +48,6 @@ public final class DiscordBot {
                     .enableIntents(GatewayIntent.GUILD_MESSAGES)
                     .disableCache(CacheFlag.VOICE_STATE, CacheFlag.ACTIVITY)
                     .addEventListeners(new DiscordMessageHandler(this));
-            if (BridgeConfig.ENABLE_MESSAGE_CONTENT_INTENT.get()) {
-                builder.enableIntents(GatewayIntent.MESSAGE_CONTENT);
-            }
             this.jda = builder.build();
             this.jda.addEventListener(new DiscordReadyListener(this));
             DiscordBridgeMod.LOGGER.info("Discord bot starting");
@@ -146,6 +145,10 @@ public final class DiscordBot {
         OptionData mcMessageOption = new OptionData(OptionType.STRING, "message", "Message to relay to Minecraft", true);
         var mcCommand = Commands.slash("mc", "Send a message to Minecraft chat")
                 .addOptions(mcMessageOption);
+        var configCommand = Commands.slash("config", "Configure Discord bridge channels and whitelist guild")
+                .addOption(OptionType.STRING, "chat_channel_id", "Bridge chat channel ID", false)
+                .addOption(OptionType.STRING, "admin_channel_id", "Admin log channel ID", false)
+                .addOption(OptionType.STRING, "whitelist_guild_id", "Guild ID allowed to use slash commands", false);
 
         String guildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
         if (!guildId.isBlank() && jda.getGuildById(guildId) != null) {
@@ -153,38 +156,92 @@ public final class DiscordBot {
             guild.upsertCommand(linkCommand).queue();
             guild.upsertCommand(leaderboardCommand).queue();
             guild.upsertCommand(mcCommand).queue();
+            guild.upsertCommand(configCommand).queue();
             return;
         }
         jda.upsertCommand(linkCommand).queue();
         jda.upsertCommand(leaderboardCommand).queue();
         jda.upsertCommand(mcCommand).queue();
+        jda.upsertCommand(configCommand).queue();
     }
 
     private void sendToChannel(String channelId, String text, DiscordEmbedPayload payload) {
         if (jda == null || channelId == null || channelId.isBlank()) {
             return;
         }
-        TextChannel channel = jda.getTextChannelById(channelId.trim());
+        String trimmedChannelId = channelId.trim();
+        TextChannel channel = jda.getTextChannelById(trimmedChannelId);
         if (channel == null) {
             if (jda.getStatus() != Status.CONNECTED) {
                 synchronized (pendingMessages) {
-                    pendingMessages.add(new PendingMessage(channelId, text, payload));
+                    pendingMessages.add(new PendingMessage(trimmedChannelId, text, payload));
                 }
-                DiscordBridgeMod.LOGGER.info("Discord not ready yet; queued message for channel {}", channelId);
+                DiscordBridgeMod.LOGGER.info("Discord not ready yet; queued message for channel {}", trimmedChannelId);
             } else {
-                DiscordBridgeMod.LOGGER.warn("Configured Discord channel not found: {}", channelId);
+                DiscordBridgeMod.LOGGER.warn("Configured Discord channel not found: {}", trimmedChannelId);
             }
+            return;
+        }
+        if (!channel.canTalk()) {
+            DiscordBridgeMod.LOGGER.warn("Discord channel is not writable by bot: {}", trimmedChannelId);
             return;
         }
         if (BridgeConfig.ENABLE_EMBEDS.get() && payload != null) {
             MessageEmbed embed = DiscordEmbedFactory.build(withLinkedPlayerMention(payload));
-            channel.sendMessageEmbeds(embed).queue(
-                    ignored -> {},
-                    error -> channel.sendMessage(text).queue()
-            );
+            try {
+                channel.sendMessageEmbeds(embed).queue(
+                        ignored -> {},
+                        error -> safeSendTextFallback(channel, text, trimmedChannelId, error)
+                );
+            } catch (RuntimeException e) {
+                if (!isRecoverableSendError(e)) {
+                    throw e;
+                }
+                DiscordBridgeMod.LOGGER.warn("Failed to send Discord embed to channel {}", trimmedChannelId, e);
+            }
             return;
         }
-        channel.sendMessage(text).queue();
+        try {
+            channel.sendMessage(text).queue(
+                    ignored -> {},
+                    error -> DiscordBridgeMod.LOGGER.warn("Failed to send Discord message to channel {}", trimmedChannelId, error)
+            );
+        } catch (RuntimeException e) {
+            if (!isRecoverableSendError(e)) {
+                throw e;
+            }
+            DiscordBridgeMod.LOGGER.warn("Failed to send Discord message to channel {}", trimmedChannelId, e);
+        }
+    }
+
+    private void safeSendTextFallback(TextChannel channel, String text, String channelId, Throwable embedError) {
+        DiscordBridgeMod.LOGGER.warn("Failed to send Discord embed to channel {}; falling back to plain text", channelId, embedError);
+        try {
+            channel.sendMessage(text).queue(
+                    ignored -> {},
+                    error -> DiscordBridgeMod.LOGGER.warn("Failed to send plain-text fallback to channel {}", channelId, error)
+            );
+        } catch (RuntimeException e) {
+            if (!isRecoverableSendError(e)) {
+                throw e;
+            }
+            DiscordBridgeMod.LOGGER.warn("Failed to send plain-text fallback to channel {}", channelId, e);
+        }
+    }
+
+    private boolean isRecoverableSendError(Throwable error) {
+        if (error instanceof java.util.concurrent.RejectedExecutionException) {
+            return true;
+        }
+        if (error instanceof ErrorResponseException responseException) {
+            ErrorResponse response = responseException.getErrorResponse();
+            return response == ErrorResponse.MISSING_ACCESS
+                    || response == ErrorResponse.MISSING_PERMISSIONS
+                    || response == ErrorResponse.UNKNOWN_CHANNEL
+                    || response == ErrorResponse.UNKNOWN_MESSAGE
+                    || response == ErrorResponse.CANNOT_SEND_TO_USER;
+        }
+        return false;
     }
 
     private DiscordEmbedPayload withLinkedPlayerMention(DiscordEmbedPayload payload) {

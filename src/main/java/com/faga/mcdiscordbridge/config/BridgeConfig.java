@@ -28,9 +28,6 @@ public final class BridgeConfig {
     public static final ModConfigSpec.BooleanValue ENABLE_MINECRAFT_CHAT_TO_DISCORD = BUILDER.define("enableMinecraftChatToDiscord", true);
     public static final ModConfigSpec.BooleanValue ENABLE_DISCORD_CHAT_TO_MINECRAFT = BUILDER.define("enableDiscordChatToMinecraft", true);
     public static final ModConfigSpec.BooleanValue ENABLE_ADMIN_LOGS = BUILDER.define("enableAdminLogs", true);
-    public static final ModConfigSpec.BooleanValue ENABLE_MESSAGE_CONTENT_INTENT = BUILDER
-            .comment("Enable only if Message Content Intent is allowed for your bot in Discord Developer Portal")
-            .define("enableMessageContentIntent", false);
     public static final ModConfigSpec.BooleanValue ENABLE_EMBEDS = BUILDER
             .comment("Send Discord embeds for richer event logs")
             .define("enableEmbeds", true);

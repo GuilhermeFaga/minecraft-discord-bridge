@@ -18,7 +18,7 @@ public class DiscordBridgeMod {
     private final DiscordBot discordBot;
 
     public DiscordBridgeMod(IEventBus modEventBus, ModContainer modContainer) {
-        modContainer.registerConfig(ModConfig.Type.SERVER, BridgeConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.COMMON, BridgeConfig.SPEC);
         this.discordBot = new DiscordBot();
         MinecraftEventHandler eventHandler = new MinecraftEventHandler(discordBot);
         eventHandler.register();

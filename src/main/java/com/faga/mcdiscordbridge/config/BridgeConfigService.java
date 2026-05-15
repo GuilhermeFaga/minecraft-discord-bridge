@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.storage.LevelResource;
 
 public final class BridgeConfigService {
     private static volatile MinecraftServer server;
@@ -29,6 +28,21 @@ public final class BridgeConfigService {
         return updateChannel("adminLogChannelId", channelId, guildId);
     }
 
+    public static Optional<String> updateWhitelistGuild(String guildId) {
+        String trimmed = guildId == null ? "" : guildId.trim();
+        if (!trimmed.matches("\\d{10,}")) {
+            return Optional.of("Guild ID must be numeric.");
+        }
+        BridgeConfig.WHITELIST_GUILD_ID.set(trimmed);
+        try {
+            persistCommonToml("whitelistGuildId", trimmed);
+        } catch (IOException e) {
+            DiscordBridgeMod.LOGGER.error("Failed to persist whitelistGuildId", e);
+            return Optional.of("Saved in memory, but failed to persist to disk.");
+        }
+        return Optional.empty();
+    }
+
     private static Optional<String> updateChannel(String key, String channelId, String guildId) {
         String trimmed = channelId == null ? "" : channelId.trim();
         if (!trimmed.matches("\\d{10,}")) {
@@ -46,7 +60,7 @@ public final class BridgeConfigService {
         }
 
         try {
-            persistServerToml(key, trimmed);
+            persistCommonToml(key, trimmed);
         } catch (IOException e) {
             DiscordBridgeMod.LOGGER.error("Failed to persist {}", key, e);
             return Optional.of("Saved in memory, but failed to persist to disk.");
@@ -54,14 +68,14 @@ public final class BridgeConfigService {
         return Optional.empty();
     }
 
-    private static void persistServerToml(String key, String value) throws IOException {
+    private static void persistCommonToml(String key, String value) throws IOException {
         MinecraftServer currentServer = server;
         if (currentServer == null) {
             return;
         }
-        Path configPath = currentServer.getWorldPath(LevelResource.ROOT)
-                .resolve("serverconfig")
-                .resolve(DiscordBridgeMod.MOD_ID + "-server.toml");
+        Path configPath = currentServer.getServerDirectory()
+                .resolve("config")
+                .resolve(DiscordBridgeMod.MOD_ID + "-common.toml");
         Files.createDirectories(configPath.getParent());
 
         List<String> lines = Files.exists(configPath)

@@ -10,7 +10,7 @@ Server-side NeoForge mod for Minecraft `1.21.x` that runs an embedded Discord bo
 - Rich Discord embeds with per-event colors, timestamps, optional player head thumbnails, and plain-text fallback
 - Bot activity rotation with configurable activity list, interval, and type (`PLAYING`, `WATCHING`, `LISTENING`, `COMPETING`)
 - Admin logging channel with command redaction and structured admin embeds
-- Discord setup wizard via guild text commands: `!bridge setup`, `!bridge chat <channelId>`, `!bridge admin <channelId>`
+- Discord config slash command for admins: `/config` to update chat/admin channels and whitelist guild
 - Discord/Minecraft account linking via `/link` (ephemeral one-time code) and in-game `/bridge link <code>`
 - `/leaderboard` slash command with categories, pagination, and visibility (`private` default, optional `public`)
 - Leaderboards include online and offline players with saved stats
@@ -39,7 +39,7 @@ Bot permissions:
 - Read Message History
 
 ## Configuration
-First run creates `serverconfig/mcdiscordbridge-server.toml`.
+First run creates `config/mcdiscordbridge-common.toml`.
 
 ```toml
 # Discord bot token or env:DISCORD_BOT_TOKEN
@@ -53,9 +53,6 @@ chatChannelId = "123456789012345678"
 
 # Discord channel for admin logs
 adminLogChannelId = "123456789012345678"
-
-# Legacy toggle for text-message relay mode (slash command `/mc` does not require this)
-enableMessageContentIntent = false
 
 # Send Discord embeds for richer event logs
 enableEmbeds = true
@@ -101,17 +98,13 @@ Then set in config:
 discordApiKey = "env:DISCORD_BOT_TOKEN"
 ```
 
-## Setup Wizard
-In your whitelisted Discord server, run:
-```text
-!bridge setup
-```
+## Setup
+In your whitelisted Discord server, run `/config` with one or more of:
+- `chat_channel_id`
+- `admin_channel_id`
+- `whitelist_guild_id`
 
-Then complete:
-- `!bridge chat <channelId>`
-- `!bridge admin <channelId>`
-
-Only Discord admins can run setup.
+Only Discord admins can run `/config`.
 
 ## Account Linking
 - On Discord, run slash command: `/link`

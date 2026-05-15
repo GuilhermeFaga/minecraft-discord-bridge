@@ -1,17 +1,18 @@
 package com.faga.mcdiscordbridge.discord;
 
 import com.faga.mcdiscordbridge.config.BridgeConfig;
+import com.faga.mcdiscordbridge.config.BridgeConfigService;
 import com.faga.mcdiscordbridge.leaderboard.LeaderboardCategory;
 import com.faga.mcdiscordbridge.leaderboard.LeaderboardEntry;
 import com.faga.mcdiscordbridge.leaderboard.LeaderboardService;
 import com.faga.mcdiscordbridge.link.PendingLinkCode;
 import com.faga.mcdiscordbridge.util.PermissionUtil;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import net.dv8tion.jda.api.EmbedBuilder;
-import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.minecraft.network.chat.Component;
@@ -21,35 +22,11 @@ public final class DiscordMessageHandler extends ListenerAdapter {
     private static final int PAGE_SIZE = 10;
 
     private final DiscordBot bot;
-    private final DiscordSetupWizard wizard;
     private final LeaderboardService leaderboardService;
 
     public DiscordMessageHandler(DiscordBot bot) {
         this.bot = bot;
-        this.wizard = new DiscordSetupWizard(bot);
         this.leaderboardService = new LeaderboardService();
-    }
-
-    @Override
-    public void onMessageReceived(@NotNull MessageReceivedEvent event) {
-        if (!event.isFromGuild() || event.getAuthor().isBot() || event.isWebhookMessage()) {
-            return;
-        }
-        String whitelistGuildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
-        if (!whitelistGuildId.isBlank() && !event.getGuild().getId().equals(whitelistGuildId)) {
-            return;
-        }
-
-        String content = event.getMessage().getContentRaw().trim();
-        if (content.equalsIgnoreCase("!bridge setup")) {
-            boolean isAdmin = PermissionUtil.isDiscordAdmin(event.getMember());
-            wizard.startOrContinue(event, isAdmin);
-            return;
-        }
-        boolean isAdmin = PermissionUtil.isDiscordAdmin(event.getMember());
-        if (wizard.handleStep(event, isAdmin)) {
-            return;
-        }
     }
 
     @Override
@@ -69,7 +46,89 @@ public final class DiscordMessageHandler extends ListenerAdapter {
         }
         if ("mc".equals(event.getName())) {
             handleMinecraftRelayCommand(event);
+            return;
         }
+        if ("config".equals(event.getName())) {
+            handleConfigCommand(event);
+        }
+    }
+
+    private void handleConfigCommand(SlashCommandInteractionEvent event) {
+        if (!PermissionUtil.isDiscordAdmin(event.getMember())) {
+            event.reply("You need Administrator permission to use this command.").setEphemeral(true).queue();
+            return;
+        }
+        String chatChannelId = option(event, "chat_channel_id");
+        String adminChannelId = option(event, "admin_channel_id");
+        String whitelistGuildId = option(event, "whitelist_guild_id");
+        if (chatChannelId == null && adminChannelId == null && whitelistGuildId == null) {
+            event.reply("Provide at least one option: `chat_channel_id`, `admin_channel_id`, or `whitelist_guild_id`.")
+                    .setEphemeral(true)
+                    .queue();
+            return;
+        }
+
+        List<String> updates = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+        String guildId = event.getGuild() == null ? "" : event.getGuild().getId();
+
+        if (chatChannelId != null) {
+            if (!isNumericSnowflake(chatChannelId)) {
+                errors.add("`chat_channel_id` must be numeric.");
+            } else {
+                TextChannel channel = event.getJDA().getTextChannelById(chatChannelId);
+                if (channel == null || event.getGuild() == null || !channel.getGuild().getId().equals(guildId)) {
+                    errors.add("`chat_channel_id` is invalid or not in this guild.");
+                } else if (!channel.canTalk()) {
+                    errors.add("Bot cannot send messages to `chat_channel_id`.");
+                } else {
+                    BridgeConfigService.updateChatChannel(chatChannelId, guildId)
+                            .ifPresentOrElse(errors::add, () -> updates.add("chat channel updated"));
+                }
+            }
+        }
+
+        if (adminChannelId != null) {
+            if (!isNumericSnowflake(adminChannelId)) {
+                errors.add("`admin_channel_id` must be numeric.");
+            } else {
+                TextChannel channel = event.getJDA().getTextChannelById(adminChannelId);
+                if (channel == null || event.getGuild() == null || !channel.getGuild().getId().equals(guildId)) {
+                    errors.add("`admin_channel_id` is invalid or not in this guild.");
+                } else if (!channel.canTalk()) {
+                    errors.add("Bot cannot send messages to `admin_channel_id`.");
+                } else {
+                    BridgeConfigService.updateAdminChannel(adminChannelId, guildId)
+                            .ifPresentOrElse(errors::add, () -> updates.add("admin channel updated"));
+                }
+            }
+        }
+
+        if (whitelistGuildId != null) {
+            if (!isNumericSnowflake(whitelistGuildId)) {
+                errors.add("`whitelist_guild_id` must be numeric.");
+            } else {
+                BridgeConfigService.updateWhitelistGuild(whitelistGuildId)
+                        .ifPresentOrElse(errors::add, () -> updates.add("whitelist guild updated"));
+            }
+        }
+
+        if (updates.isEmpty() && !errors.isEmpty()) {
+            event.reply(String.join("\n", errors)).setEphemeral(true).queue();
+            return;
+        }
+
+        StringBuilder reply = new StringBuilder();
+        if (!updates.isEmpty()) {
+            reply.append("Updated: ").append(String.join(", ", updates)).append(".");
+        }
+        if (!errors.isEmpty()) {
+            if (!reply.isEmpty()) {
+                reply.append("\n");
+            }
+            reply.append("Issues:\n").append(String.join("\n", errors));
+        }
+        event.reply(reply.toString()).setEphemeral(true).queue();
     }
 
     private void handleMinecraftRelayCommand(SlashCommandInteractionEvent event) {
@@ -100,7 +159,10 @@ public final class DiscordMessageHandler extends ListenerAdapter {
                 Component.literal("[Discord] <" + senderName + "> " + safe),
                 false
         ));
-        event.getChannel().sendMessage("**" + senderName + ":** " + safe).queue();
+        event.getChannel().sendMessage("**" + senderName + ":** " + safe).queue(
+                ignored -> {},
+                error -> {}
+        );
         event.deferReply(true).queue(hook -> hook.deleteOriginal().queue());
     }
 
@@ -173,6 +235,19 @@ public final class DiscordMessageHandler extends ListenerAdapter {
     private boolean isWhitelistedGuild(SlashCommandInteractionEvent event) {
         String whitelistGuildId = BridgeConfig.WHITELIST_GUILD_ID.get().trim();
         return whitelistGuildId.isBlank() || (event.getGuild() != null && event.getGuild().getId().equals(whitelistGuildId));
+    }
+
+    private String option(SlashCommandInteractionEvent event, String name) {
+        OptionMapping option = event.getOption(name);
+        if (option == null) {
+            return null;
+        }
+        String value = option.getAsString().trim();
+        return value.isBlank() ? null : value;
+    }
+
+    private boolean isNumericSnowflake(String value) {
+        return value != null && value.matches("\\d{10,}");
     }
 
     private String sanitize(String text) {

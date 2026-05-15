@@ -3,22 +3,10 @@ LOCAL_SERVER_DIR=.local-neoforge-server
 DEFAULT_MC_VERSION=$(shell sed -n 's/^minecraft_version=//p' gradle.properties)
 DEFAULT_NEO_VERSION=$(shell sed -n 's/^neo_version=//p' gradle.properties)
 MOD_VERSION=$(shell sed -n 's/^mod_version=//p' gradle.properties)
-MC_VERSION?=$(DEFAULT_MC_VERSION)
-NEO_VERSION?=$(strip $(shell case "$(MC_VERSION)" in \
-1.21.1) printf "21.1.229" ;; \
-1.21.2) printf "21.2.1-beta" ;; \
-1.21.3) printf "21.3.96" ;; \
-1.21.4) printf "21.4.157" ;; \
-1.21.5) printf "21.5.97" ;; \
-1.21.6) printf "21.6.20-beta" ;; \
-1.21.7) printf "21.7.25-beta" ;; \
-1.21.8) printf "21.8.53" ;; \
-1.21.9) printf "21.9.16-beta" ;; \
-1.21.10) printf "21.10.64" ;; \
-1.21.11) printf "21.11.42" ;; \
-*) printf "" ;; \
-esac))
 SUPPORTED_MATRIX=1.21.1:21.1.229 1.21.2:21.2.1-beta 1.21.3:21.3.96 1.21.4:21.4.157 1.21.5:21.5.97 1.21.6:21.6.20-beta 1.21.7:21.7.25-beta 1.21.8:21.8.53 1.21.9:21.9.16-beta 1.21.10:21.10.64 1.21.11:21.11.42
+MC_VERSION?=$(DEFAULT_MC_VERSION)
+AUTO_NEO_VERSION=$(strip $(patsubst $(MC_VERSION):%,%,$(filter $(MC_VERSION):%,$(SUPPORTED_MATRIX))))
+NEO_VERSION?=$(AUTO_NEO_VERSION)
 NEOFORGE_INSTALLER=neoforge-$(NEO_VERSION)-installer.jar
 NEOFORGE_INSTALLER_URL=https://maven.neoforged.net/releases/net/neoforged/neoforge/$(NEO_VERSION)/$(NEOFORGE_INSTALLER)
 LOCAL_SERVER_VERSION_DIR=$(LOCAL_SERVER_DIR)/mc$(MC_VERSION)
